@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "npx tsx --env-file=.env.dev --watch  src/index.ts",
-    "start": "tsx  src/index.ts",
+    "start": "tsx  --env-file=.env.dev src/index.ts",
     "db:sync": "tsx --env-file=.env.dev src/database/sync.ts"
   },
   "keywords": [],
