@@ -10,16 +10,18 @@ async function seedDatabase() {
 
         await Role.bulkCreate(
             [
-                { name: "admin" },
+                { name: "client_operator" },
+                { name: "warehouse_operator" },
+                /* { name: "admin" },
                 { name: "operator" },
-                { name: "client" },
+                { name: "client" }, */
             ],
             {
                 ignoreDuplicates: true,
             }
         );
 
-        await MovementStatus.bulkCreate(
+        /* await MovementStatus.bulkCreate(
             [
                 {
                     code: "ENTRADA_PLANTA",
@@ -50,7 +52,7 @@ async function seedDatabase() {
             {
                 ignoreDuplicates: true,
             }
-        );
+        ); */
 
         console.log("Seed inicial ejecutado correctamente");
         process.exit(0);

@@ -5,10 +5,20 @@ import {
     MovementStatus,
     User,
 } from "../models/index.js";
+import {
+    isAdmin,
+    isClientOperator,
+} from "../helpers/auth.helper.js";
 
 export async function getOperatorBatches(req: Request, res: Response) {
     try {
+        const where: any = {};
+
+        if (req.user?.role?.name === "client_operator") {
+            where.client_id = req.user.client_id;
+        }
         const batches = await GarmentBatch.findAll({
+            where,
             include: [
                 { model: Client, as: "client", attributes: ["id", "name", "rut"] },
                 { model: User, as: "creator", attributes: ["id", "name", "email"] },
@@ -89,14 +99,47 @@ export async function createOperatorBatch(req: Request, res: Response) {
             });
         }
 
-        if (!client_id || !batch_number?.trim()) {
+        const roleName = user.role?.name;
+
+        if (!batch_number?.trim()) {
             return res.status(400).json({
                 ok: false,
-                message: "client_id y batch_number son obligatorios",
+                message: "batch_number es obligatorio",
             });
         }
 
-        const client = await Client.findByPk(client_id);
+        let finalClientId: string | null = null;
+
+        if (roleName === "client_operator") {
+            if (!user.client_id) {
+                return res.status(403).json({
+                    ok: false,
+                    message: "El operario cliente no tiene cliente asociado",
+                });
+            }
+
+            finalClientId = user.client_id;
+        }
+
+        if (roleName === "admin") {
+            if (!client_id) {
+                return res.status(400).json({
+                    ok: false,
+                    message: "client_id es obligatorio para administrador",
+                });
+            }
+
+            finalClientId = client_id;
+        }
+
+        if (roleName !== "admin" && roleName !== "client_operator") {
+            return res.status(403).json({
+                ok: false,
+                message: "No tienes permisos para crear lotes",
+            });
+        }
+
+        const client = await Client.findByPk(finalClientId || '');
 
         if (!client) {
             return res.status(404).json({
@@ -132,7 +175,7 @@ export async function createOperatorBatch(req: Request, res: Response) {
         }
 
         const batch = await GarmentBatch.create({
-            client_id,
+            client_id: finalClientId || '',
             batch_number: batch_number.trim(),
             created_by: user.id,
             origin_location: origin_location || null,
@@ -149,6 +192,7 @@ export async function createOperatorBatch(req: Request, res: Response) {
         });
     } catch (error) {
         console.error(error);
+
         return res.status(500).json({
             ok: false,
             message: "Error creando lote",

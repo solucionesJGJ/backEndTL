@@ -11,8 +11,8 @@ import { requireRole } from "../middlewares/role.middleware.js";
 
 const router = Router();
 
-router.get("/", authMiddleware, requireRole("admin", "operator"), getGarments);
-router.get("/:id", authMiddleware, requireRole("admin", "operator"), getGarmentById);
+router.get("/", authMiddleware, requireRole("admin", "warehouse_operator", "client_operator"), getGarments);
+router.get("/:id", authMiddleware, requireRole("admin", "warehouse_operator", "client_operator"), getGarmentById);
 router.post("/", authMiddleware, requireRole("admin"), createGarment);
 router.put("/:id", authMiddleware, requireRole("admin"), updateGarment);
 router.patch("/:id/deactivate", authMiddleware, requireRole("admin"), deactivateGarment);

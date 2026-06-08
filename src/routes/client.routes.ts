@@ -14,14 +14,14 @@ router.post(
 router.get(
     "/",
     authMiddleware,
-    requireRole("admin", "operator"),
+    requireRole("admin", "client_operator",'warehouse_operator'),
     getClients
 );
 
 router.get(
     "/:id",
     authMiddleware,
-    requireRole("admin", "operator"),
+    requireRole("admin", "client_operator", 'warehouse_operator'),
     getClientById
 );
 
