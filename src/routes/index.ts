@@ -9,6 +9,7 @@ import roleRoutes from "./role.routes.js";
 import operatorBatchRoutes from "./operator-batch.routes.js";
 import movementStatusRoutes from "./movement-status.routes.js";
 import stockRoutes from "./stock.routes.js";
+import garmentProcessRoutes from "./garment-process.routes.js";
 
 const router = Router();
 
@@ -21,5 +22,6 @@ router.use("/roles", roleRoutes);
 router.use("/operator", operatorBatchRoutes);
 router.use("/movement-statuses", movementStatusRoutes);
 router.use("/stock", stockRoutes);
+router.use("/garment-processes", garmentProcessRoutes);
 
 export default router;

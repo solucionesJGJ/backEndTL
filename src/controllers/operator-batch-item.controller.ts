@@ -3,6 +3,7 @@ import {
     Garment,
     GarmentBatch,
     GarmentBatchItem,
+    GarmentProcess,
     GarmentType,
 } from "../models/index.js";
 
@@ -35,6 +36,11 @@ export async function getBatchItems(req: Request, res: Response) {
                         },
                     ],
                 },
+                {
+                    model: GarmentProcess,
+                    as: "process",
+                    attributes: ["id", "name", "code", "percentage"],
+                },
             ],
             order: [["createdAt", "DESC"]],
         });
@@ -60,6 +66,7 @@ export async function addBatchItem(req: Request, res: Response) {
         const {
             garment_id,
             quantity_sent,
+            garment_process_id,
             quantity_received,
             notes,
         } = req.body;
@@ -117,14 +124,37 @@ export async function addBatchItem(req: Request, res: Response) {
             });
         }
 
+        let process = null;
+
+        if (garment_process_id) {
+            process = await GarmentProcess.findByPk(garment_process_id);
+
+            if (!process) {
+                return res.status(404).json({
+                    ok: false,
+                    message: "Proceso no encontrado",
+                });
+            }
+        }
+
+        const unitValue = Number(garment.value || 0);
+        const processPercentage = Number(process?.percentage || 0);
+        const calculatedUnitValue = unitValue + (unitValue * processPercentage) / 100;
+        const calculatedTotal = calculatedUnitValue * Number(quantity_received || quantity_sent);
+
         const item = await GarmentBatchItem.create({
             batch_id: batchId,
             garment_id,
+            garment_process_id: garment_process_id || null,
             quantity_sent,
             quantity_received: quantity_received || 0,
             quantity_processed: 0,
             quantity_reprocessed: 0,
             quantity_returned: 0,
+            unit_value: unitValue,
+            process_percentage: processPercentage,
+            calculated_unit_value: calculatedUnitValue,
+            calculated_total: calculatedTotal,
             notes: notes || null,
         });
 
@@ -148,6 +178,7 @@ export async function updateBatchItem(req: Request, res: Response) {
         const { batchId, itemId } = req.params;
 
         const {
+            garment_process_id,
             quantity_sent,
             quantity_received,
             quantity_processed,
@@ -170,7 +201,54 @@ export async function updateBatchItem(req: Request, res: Response) {
             });
         }
 
+        const garment = await Garment.findByPk(item.garment_id);
+
+        if (!garment) {
+            return res.status(404).json({
+                ok: false,
+                message: "Prenda no encontrada",
+            });
+        }
+
+        let process = null;
+
+        if (garment_process_id) {
+            process = await GarmentProcess.findByPk(garment_process_id);
+
+            if (!process) {
+                return res.status(404).json({
+                    ok: false,
+                    message: "Proceso no encontrado",
+                });
+            }
+        }
+
+        const finalQuantityReceived =
+            typeof quantity_received === "number"
+                ? quantity_received
+                : item.quantity_received;
+
+        const finalQuantitySent =
+            typeof quantity_sent === "number"
+                ? quantity_sent
+                : item.quantity_sent;
+
+        const quantityForCalculation = finalQuantityReceived || finalQuantitySent;
+
+        const unitValue = Number(garment.value || 0);
+        const processPercentage = Number(process?.percentage || item.process_percentage || 0);
+        const calculatedUnitValue = unitValue + (unitValue * processPercentage) / 100;
+        const calculatedTotal = calculatedUnitValue * quantityForCalculation;
+
         await item.update({
+            garment_process_id:
+                garment_process_id !== undefined
+                    ? garment_process_id || null
+                    : item.garment_process_id,
+            unit_value: unitValue,
+            process_percentage: processPercentage,
+            calculated_unit_value: calculatedUnitValue,
+            calculated_total: calculatedTotal,
             quantity_sent:
                 typeof quantity_sent === "number" ? quantity_sent : item.quantity_sent,
             quantity_received:

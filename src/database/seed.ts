@@ -2,24 +2,49 @@ import {
     Role,
     MovementStatus,
     sequelize,
+    GarmentProcess,
 } from "../models/index.js";
 
 async function seedDatabase() {
     try {
         await sequelize.authenticate();
 
-        await Role.bulkCreate(
+        await GarmentProcess.bulkCreate(
             [
-                { name: "client_operator" },
-                { name: "warehouse_operator" },
-                /* { name: "admin" },
-                { name: "operator" },
-                { name: "client" }, */
+                {
+                    name: "Sucio normal",
+                    code: "SUCIO_NORMAL",
+                    percentage: 0
+                },
+                {
+                    name: "Manchado",
+                    code: "MANCHADO",
+                    percentage: 30
+                },
+                {
+                    name: "Reproceso",
+                    code: "REPROCESO",
+                    percentage: 0
+                },
+
             ],
             {
                 ignoreDuplicates: true,
             }
         );
+
+        /* await Role.bulkCreate(
+            [
+                { name: "client_operator" },
+                { name: "warehouse_operator" },
+                 { name: "admin" },
+                { name: "operator" },
+                { name: "client" }, 
+            ],
+            {
+                ignoreDuplicates: true,
+            }
+        ); */
 
         /* await MovementStatus.bulkCreate(
             [

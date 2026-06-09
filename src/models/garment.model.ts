@@ -22,6 +22,7 @@ export class Garment extends Model<
     declare active: CreationOptional<boolean>;
     declare createdAt: CreationOptional<Date>;
     declare updatedAt: CreationOptional<Date>;
+    declare value: CreationOptional<number>;
 }
 
 export function initGarmentModel(sequelize: Sequelize): typeof Garment {
@@ -74,6 +75,11 @@ export function initGarmentModel(sequelize: Sequelize): typeof Garment {
                 type: DataTypes.DATE,
                 field: "updated_at",
             },
+            value: {
+                type: DataTypes.DECIMAL(12, 2),
+                allowNull: false,
+                defaultValue: 0,
+            }
         },
         {
             sequelize,

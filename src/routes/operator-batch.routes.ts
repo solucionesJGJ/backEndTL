@@ -31,6 +31,6 @@ router.put("/batches/:batchId/items/:itemId", updateBatchItem);
 router.delete("/batches/:batchId/items/:itemId", removeBatchItem);
 
 router.get("/batches/:batchId/movements", getBatchMovements);
-router.post("/batches/:batchId/movements", authMiddleware, requireRole("admin", "warehouse_operator"), createBatchMovement);
+router.post("/batches/:batchId/movements", authMiddleware, requireRole("admin", "warehouse_operator", "client_operator"), createBatchMovement);
 
 export default router;

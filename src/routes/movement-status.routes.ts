@@ -8,7 +8,7 @@ const router = Router();
 router.get(
     "/",
     authMiddleware,
-    requireRole("admin", "warehouse_operator"),
+    requireRole("admin", "warehouse_operator", "client_operator"),
     getMovementStatuses
 );
 

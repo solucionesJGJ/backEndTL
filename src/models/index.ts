@@ -25,6 +25,10 @@ import {
     GarmentStock,
     initGarmentStockModel,
 } from "./garment-stock.model.js";
+import {
+    GarmentProcess,
+    initGarmentProcessModel,
+} from "./garment-process.model.js";
 
 if (!process.env.DB_NAME || !process.env.DB_USER || !process.env.DB_PASS || !process.env.DB_HOST) {
     throw new Error("Una o más variables de entorno de la base de datos no están definidas");
@@ -52,6 +56,7 @@ initGarmentBatchModel(sequelize);
 initGarmentBatchItemModel(sequelize);
 initGarmentMovementModel(sequelize);
 initGarmentStockModel(sequelize);
+initGarmentProcessModel(sequelize);
 
 /**
  * Relaciones
@@ -210,6 +215,16 @@ GarmentStock.belongsTo(MovementStatus, {
     as: "status",
 });
 
+GarmentProcess.hasMany(GarmentBatchItem, {
+  foreignKey: "garment_process_id",
+  as: "batch_items",
+});
+
+GarmentBatchItem.belongsTo(GarmentProcess, {
+  foreignKey: "garment_process_id",
+  as: "process",
+});
+
 export {
     Role,
     User,
@@ -221,4 +236,5 @@ export {
     GarmentBatchItem,
     GarmentMovement,
     GarmentStock,
+    GarmentProcess,
 };

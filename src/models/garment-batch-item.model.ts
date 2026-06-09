@@ -22,6 +22,11 @@ export class GarmentBatchItem extends Model<
     declare notes: string | null;
     declare createdAt: CreationOptional<Date>;
     declare updatedAt: CreationOptional<Date>;
+    declare garment_process_id: string | null;
+    declare unit_value: CreationOptional<number>;
+    declare process_percentage: CreationOptional<number>;
+    declare calculated_unit_value: CreationOptional<number>;
+    declare calculated_total: CreationOptional<number>;
 }
 
 export function initGarmentBatchItemModel(
@@ -83,6 +88,30 @@ export function initGarmentBatchItemModel(
             updatedAt: {
                 type: DataTypes.DATE,
                 field: "updated_at",
+            },
+            garment_process_id: {
+                type: DataTypes.UUID,
+                allowNull: true,
+            },
+            unit_value: {
+                type: DataTypes.DECIMAL(12, 2),
+                allowNull: false,
+                defaultValue: 0,
+            },
+            process_percentage: {
+                type: DataTypes.DECIMAL(5, 2),
+                allowNull: false,
+                defaultValue: 0,
+            },
+            calculated_unit_value: {
+                type: DataTypes.DECIMAL(12, 2),
+                allowNull: false,
+                defaultValue: 0,
+            },
+            calculated_total: {
+                type: DataTypes.DECIMAL(12, 2),
+                allowNull: false,
+                defaultValue: 0,
             },
         },
         {

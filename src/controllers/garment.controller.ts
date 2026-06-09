@@ -51,6 +51,7 @@ export async function createGarment(req: Request, res: Response) {
       size,
       color,
       barcode,
+      value,
     } = req.body;
 
     if (!client_id || !garment_type_id || !code?.trim()) {
@@ -106,6 +107,7 @@ export async function createGarment(req: Request, res: Response) {
       color: color || null,
       barcode: barcode || null,
       active: true,
+      value: Number(value || 0),
     });
 
     return res.status(201).json({
@@ -132,6 +134,7 @@ export async function updateGarment(req: Request, res: Response) {
       color,
       barcode,
       active,
+      value,
     } = req.body;
 
     const garment = await Garment.findByPk(id);
@@ -197,6 +200,7 @@ export async function updateGarment(req: Request, res: Response) {
       color: color || null,
       barcode: barcode || null,
       active: typeof active === "boolean" ? active : garment.active,
+      value: Number(value || 0),
     });
 
     return res.json({
