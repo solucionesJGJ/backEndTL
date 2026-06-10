@@ -1,6 +1,7 @@
 import { Op } from "sequelize";
 import type { Request, Response } from "express";
 import { Client, Garment, GarmentType } from "../models/index.js";
+import { isNonNegativeNumber } from "../utils/validators.js";
 
 export async function getGarments(req: Request, res: Response) {
   try {
@@ -96,6 +97,13 @@ export async function createGarment(req: Request, res: Response) {
           message: "Ya existe una prenda con ese código de barra",
         });
       }
+    }
+
+    if (!isNonNegativeNumber(value)) {
+      return res.status(400).json({
+        ok: false,
+        message: 'El valor de la prenda no puede ser negativo',
+      })
     }
 
     const garment = await Garment.create({

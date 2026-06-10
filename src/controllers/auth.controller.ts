@@ -23,7 +23,7 @@ export async function login(req: Request, res: Response) {
                 {
                     model: Role,
                     as: "role",
-                    attributes: ["id", "name"],
+                    attributes: ["id", "name", "name_display"],
                 },
                 {
                     model: Client,

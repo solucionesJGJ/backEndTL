@@ -1,6 +1,14 @@
 import type { Request, Response } from "express";
 import { Client } from "../models/index.js";
 import { Op } from "sequelize";
+import {
+    formatRut,
+    isRequired,
+    isValidEmail,
+    isValidPhoneCL,
+    isValidRut,
+    normalizeText,
+} from '../utils/validators.js'
 
 export async function createClient(req: Request, res: Response) {
     try {
@@ -12,6 +20,34 @@ export async function createClient(req: Request, res: Response) {
             contact_email,
             contact_phone,
         } = req.body;
+
+        if (!isRequired(name) || !isRequired(rut) || !isRequired(contact_name) || !isRequired(contact_email) || !isRequired(contact_phone)) {
+            return res.status(400).json({
+                ok: false,
+                message: 'Todos los campos son obligatorios',
+            })
+        }
+
+        if (rut && !isValidRut(rut)) {
+            return res.status(400).json({
+                ok: false,
+                message: 'El RUT ingresado no es válido',
+            })
+        }
+
+        if (contact_email && !isValidEmail(contact_email)) {
+            return res.status(400).json({
+                ok: false,
+                message: 'El email de contacto no es válido',
+            })
+        }
+
+        if (contact_phone && !isValidPhoneCL(contact_phone)) {
+            return res.status(400).json({
+                ok: false,
+                message: 'El teléfono debe tener formato chileno válido',
+            })
+        }
 
         if (!name) {
             return res.status(400).json({
@@ -32,14 +68,14 @@ export async function createClient(req: Request, res: Response) {
         }
 
         const client = await Client.create({
-            name,
-            rut,
-            address,
-            contact_name,
-            contact_email,
-            contact_phone,
+            name: normalizeText(name),
+            rut: rut ? formatRut(rut) : null,
+            address: address ? normalizeText(address) : null,
+            contact_name: contact_name ? normalizeText(contact_name) : null,
+            contact_email: contact_email ? contact_email.trim().toLowerCase() : null,
+            contact_phone: contact_phone || null,
             active: true,
-        });
+        })
 
         return res.status(201).json({
             ok: true,

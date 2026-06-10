@@ -11,6 +11,7 @@ declare global {
                 role?: {
                     id: string;
                     name: string;
+                    nameDisplay: string;
                 };
                 client?: {
                     id: string;

@@ -1,6 +1,7 @@
 import { Op } from "sequelize";
 import type { Request, Response } from "express";
 import { GarmentProcess } from "../models/index.js";
+import { isNonNegativeNumber } from "../utils/validators.js";
 
 export async function getGarmentProcesses(req: Request, res: Response) {
     try {
@@ -24,6 +25,13 @@ export async function getGarmentProcesses(req: Request, res: Response) {
 export async function createGarmentProcess(req: Request, res: Response) {
     try {
         const { name, code, percentage } = req.body;
+        
+        if (!isNonNegativeNumber(percentage)) {
+            return res.status(400).json({
+                ok: false,
+                message: 'El porcentaje no puede ser negativo',
+            })
+        }
 
         if (!name?.trim() || !code?.trim()) {
             return res.status(400).json({

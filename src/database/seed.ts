@@ -33,20 +33,20 @@ async function seedDatabase() {
             }
         );
 
-        /* await Role.bulkCreate(
+        await Role.bulkCreate(
             [
-                { name: "client_operator" },
-                { name: "warehouse_operator" },
-                 { name: "admin" },
-                { name: "operator" },
-                { name: "client" }, 
+                { name: "client_operator", nameDisplay: "Operador cliente" },
+                { name: "warehouse_operator", nameDisplay: "Operador bodega" },
+                { name: "admin", nameDisplay: "Administrador" },
+                { name: "operator", nameDisplay: "Operador" },
+                { name: "client", nameDisplay: "Cliente" },
             ],
             {
                 ignoreDuplicates: true,
             }
-        ); */
+        );
 
-        /* await MovementStatus.bulkCreate(
+        await MovementStatus.bulkCreate(
             [
                 {
                     code: "ENTRADA_PLANTA",
@@ -77,7 +77,7 @@ async function seedDatabase() {
             {
                 ignoreDuplicates: true,
             }
-        ); */
+        );
 
         console.log("Seed inicial ejecutado correctamente");
         process.exit(0);

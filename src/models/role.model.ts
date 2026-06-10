@@ -15,6 +15,7 @@ export class Role extends Model<
     declare name: string;
     declare createdAt: CreationOptional<Date>;
     declare updatedAt: CreationOptional<Date>;
+    declare nameDisplay: string;
 }
 
 export function initRoleModel(sequelize: Sequelize): typeof Role {
@@ -37,6 +38,9 @@ export function initRoleModel(sequelize: Sequelize): typeof Role {
             updatedAt: {
                 type: DataTypes.DATE,
                 field: "updated_at",
+            },
+            nameDisplay: {
+                type: DataTypes.STRING(100),
             },
         },
         {

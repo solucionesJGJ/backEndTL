@@ -2,13 +2,14 @@ import bcrypt from "bcrypt";
 import { Op } from "sequelize";
 import type { Request, Response } from "express";
 import { Client, Role, User } from "../models/index.js";
+import { isValidEmail } from "../utils/validators.js";
 
 export async function getUsers(req: Request, res: Response) {
     try {
         const users = await User.findAll({
             attributes: { exclude: ["password_hash"] },
             include: [
-                { model: Role, as: "role", attributes: ["id", "name"] },
+                { model: Role, as: "role", attributes: ["id", "name", "name_display"] },
                 { model: Client, as: "client", attributes: ["id", "name", "rut"] },
             ],
             order: [["createdAt", "DESC"]],
@@ -24,6 +25,19 @@ export async function getUsers(req: Request, res: Response) {
 export async function createUser(req: Request, res: Response) {
     try {
         const { name, email, password, role_id, client_id } = req.body;
+        if (!isValidEmail(email)) {
+            return res.status(400).json({
+                ok: false,
+                message: 'El email no es válido',
+            })
+        }
+
+        if (password && password.length < 8) {
+            return res.status(400).json({
+                ok: false,
+                message: 'La contraseña debe tener al menos 8 caracteres',
+            })
+        }
 
         if (!name || !email || !password || !role_id) {
             return res.status(400).json({
