@@ -86,6 +86,15 @@ export async function createBatchMovement(req: Request, res: Response) {
       });
     }
 
+    const roleName = user?.role?.name;
+
+    if (roleName !== "admin" && roleName !== "warehouse_operator") {
+      return res.status(403).json({
+        ok: false,
+        message: "No tienes permisos para registrar movimientos",
+      });
+    }
+
     if (!garment_id || !to_status_id || !quantity || !movement_type) {
       return res.status(400).json({
         ok: false,

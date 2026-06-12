@@ -5,7 +5,16 @@ import {
     GarmentBatchItem,
     GarmentProcess,
     GarmentType,
+    MovementStatus,
 } from "../models/index.js";
+
+function isClientOperator(req: Request) {
+    return req.user?.role?.name === "client_operator";
+}
+
+function isAdmin(req: Request) {
+    return req.user?.role?.name === "admin";
+}
 
 export async function getBatchItems(req: Request, res: Response) {
     try {
@@ -59,6 +68,54 @@ export async function getBatchItems(req: Request, res: Response) {
     }
 }
 
+async function assertBatchEditableByClient(batchId: string, req: Request) {
+    const batch = await GarmentBatch.findByPk(batchId, {
+        include: [
+            {
+                model: MovementStatus,
+                as: "current_status",
+                attributes: ["id", "code", "name"],
+            },
+        ],
+    });
+
+    if (!batch) {
+        return {
+            ok: false,
+            status: 404,
+            message: "Lote no encontrado",
+            batch: null,
+        };
+    }
+
+    const batchJson = batch.toJSON() as any;
+
+    if (isClientOperator(req) && batch.client_id !== req.user?.client_id) {
+        return {
+            ok: false,
+            status: 403,
+            message: "No puedes modificar lotes de otro cliente",
+            batch: null,
+        };
+    }
+
+    if (batchJson.current_status?.code !== "PENDIENTE_RECEPCION") {
+        return {
+            ok: false,
+            status: 400,
+            message: "Solo se pueden modificar prendas de lotes pendientes de recepción",
+            batch: null,
+        };
+    }
+
+    return {
+        ok: true,
+        status: 200,
+        message: "",
+        batch,
+    };
+}
+
 export async function addBatchItem(req: Request, res: Response) {
     try {
         const { batchId } = req.params;
@@ -85,12 +142,23 @@ export async function addBatchItem(req: Request, res: Response) {
             });
         }
 
-        const batch = await GarmentBatch.findByPk(batchId);
+        /* const batch = await GarmentBatch.findByPk(batchId); */
 
-        if (!batch) {
-            return res.status(404).json({
+        const validation = await assertBatchEditableByClient(batchId, req);
+
+        if (!validation.ok) {
+            return res.status(validation.status).json({
                 ok: false,
-                message: "Lote no encontrado",
+                message: validation.message,
+            });
+        }
+
+        const batch = validation.batch!;
+
+        if (isClientOperator(req) && batch.client_id !== req.user?.client_id) {
+            return res.status(403).json({
+                ok: false,
+                message: "No puedes modificar lotes de otro cliente",
             });
         }
 
@@ -103,12 +171,12 @@ export async function addBatchItem(req: Request, res: Response) {
             });
         }
 
-        if (garment.client_id !== batch.client_id) {
-            return res.status(400).json({
-                ok: false,
-                message: "La prenda no pertenece al cliente del lote",
-            });
-        }
+        /*  if (garment.client_id !== batch.client_id) {
+             return res.status(400).json({
+                 ok: false,
+                 message: "La prenda no pertenece al cliente del lote",
+             });
+         } */
 
         const existingItem = await GarmentBatchItem.findOne({
             where: {
@@ -139,8 +207,15 @@ export async function addBatchItem(req: Request, res: Response) {
 
         const unitValue = Number(garment.value || 0);
         const processPercentage = Number(process?.percentage || 0);
-        const calculatedUnitValue = unitValue + (unitValue * processPercentage) / 100;
-        const calculatedTotal = calculatedUnitValue * Number(quantity_received || quantity_sent);
+
+        let calculatedUnitValue = unitValue + (unitValue * processPercentage) / 100;
+
+        if (process?.code === "REPROCESO") {
+            calculatedUnitValue = 0;
+        }
+
+        const calculatedTotal =
+            calculatedUnitValue * Number(quantity_received || quantity_sent);
 
         const item = await GarmentBatchItem.create({
             batch_id: batchId,
@@ -223,6 +298,33 @@ export async function updateBatchItem(req: Request, res: Response) {
             }
         }
 
+        /* const batch = await GarmentBatch.findByPk(batchId); */
+
+        const validation = await assertBatchEditableByClient(batchId, req);
+
+        if (!validation.ok) {
+            return res.status(validation.status).json({
+                ok: false,
+                message: validation.message,
+            });
+        }
+
+        const batch = validation.batch!;
+
+        if (!batch) {
+            return res.status(404).json({
+                ok: false,
+                message: "Lote no encontrado",
+            });
+        }
+
+        if (isClientOperator(req) && batch.client_id !== req.user?.client_id) {
+            return res.status(403).json({
+                ok: false,
+                message: "No puedes modificar lotes de otro cliente",
+            });
+        }
+
         const finalQuantityReceived =
             typeof quantity_received === "number"
                 ? quantity_received
@@ -300,6 +402,33 @@ export async function removeBatchItem(req: Request, res: Response) {
             return res.status(404).json({
                 ok: false,
                 message: "Prenda del lote no encontrada",
+            });
+        }
+
+        /* const batch = await GarmentBatch.findByPk(batchId); */
+
+        const validation = await assertBatchEditableByClient(batchId, req);
+
+        if (!validation.ok) {
+            return res.status(validation.status).json({
+                ok: false,
+                message: validation.message,
+            });
+        }
+
+        const batch = validation.batch!;
+
+        if (!batch) {
+            return res.status(404).json({
+                ok: false,
+                message: "Lote no encontrado",
+            });
+        }
+
+        if (isClientOperator(req) && batch.client_id !== req.user?.client_id) {
+            return res.status(403).json({
+                ok: false,
+                message: "No puedes modificar lotes de otro cliente",
             });
         }
 

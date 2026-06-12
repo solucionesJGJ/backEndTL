@@ -12,7 +12,6 @@ export class Garment extends Model<
     InferCreationAttributes<Garment>
 > {
     declare id: CreationOptional<string>;
-    declare client_id: string;
     declare garment_type_id: string;
     declare code: string;
     declare description: string | null;
@@ -32,10 +31,6 @@ export function initGarmentModel(sequelize: Sequelize): typeof Garment {
                 type: DataTypes.UUID,
                 defaultValue: DataTypes.UUIDV4,
                 primaryKey: true,
-            },
-            client_id: {
-                type: DataTypes.UUID,
-                allowNull: false,
             },
             garment_type_id: {
                 type: DataTypes.UUID,
@@ -89,7 +84,7 @@ export function initGarmentModel(sequelize: Sequelize): typeof Garment {
             indexes: [
                 {
                     unique: true,
-                    fields: ["client_id", "code"],
+                    fields: ["code"],
                 },
             ],
         }

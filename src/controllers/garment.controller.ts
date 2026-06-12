@@ -7,7 +7,6 @@ export async function getGarments(req: Request, res: Response) {
   try {
     const garments = await Garment.findAll({
       include: [
-        { model: Client, as: "client", attributes: ["id", "name", "rut"] },
         { model: GarmentType, as: "type", attributes: ["id", "name"] },
       ],
       order: [["createdAt", "DESC"]],
@@ -26,7 +25,6 @@ export async function getGarmentById(req: Request, res: Response) {
 
     const garment = await Garment.findByPk(id, {
       include: [
-        { model: Client, as: "client", attributes: ["id", "name", "rut"] },
         { model: GarmentType, as: "type", attributes: ["id", "name"] },
       ],
     });
@@ -45,7 +43,6 @@ export async function getGarmentById(req: Request, res: Response) {
 export async function createGarment(req: Request, res: Response) {
   try {
     const {
-      client_id,
       garment_type_id,
       code,
       description,
@@ -55,26 +52,28 @@ export async function createGarment(req: Request, res: Response) {
       value,
     } = req.body;
 
-    if (!client_id || !garment_type_id || !code?.trim()) {
+    /* if (!garment_type_id || !code?.trim()) {
       return res.status(400).json({
         ok: false,
         message: "client_id, garment_type_id y code son obligatorios",
       });
     }
-
-    const client = await Client.findByPk(client_id);
+ */
+    /* const client = await Client.findByPk(client_id);
     if (!client) {
       return res.status(404).json({ ok: false, message: "Cliente no encontrado" });
     }
-
+ */
     const garmentType = await GarmentType.findByPk(garment_type_id);
-    if (!garmentType) {
-      return res.status(404).json({ ok: false, message: "Tipo de prenda no encontrado" });
+    if (!garment_type_id || !code?.trim()) {
+      return res.status(400).json({
+        ok: false,
+        message: "garment_type_id y code son obligatorios",
+      });
     }
 
     const existingCode = await Garment.findOne({
       where: {
-        client_id,
         code: code.trim(),
       },
     });
@@ -107,15 +106,14 @@ export async function createGarment(req: Request, res: Response) {
     }
 
     const garment = await Garment.create({
-      client_id,
       garment_type_id,
       code: code.trim(),
       description: description || null,
       size: size || null,
       color: color || null,
       barcode: barcode || null,
-      active: true,
       value: Number(value || 0),
+      active: true,
     });
 
     return res.status(201).json({
@@ -134,7 +132,6 @@ export async function updateGarment(req: Request, res: Response) {
     const { id } = req.params;
 
     const {
-      client_id,
       garment_type_id,
       code,
       description,
@@ -151,17 +148,17 @@ export async function updateGarment(req: Request, res: Response) {
       return res.status(404).json({ ok: false, message: "Prenda no encontrada" });
     }
 
-    if (!client_id || !garment_type_id || !code?.trim()) {
+    if (!garment_type_id || !code?.trim()) {
       return res.status(400).json({
         ok: false,
-        message: "client_id, garment_type_id y code son obligatorios",
+        message: "garment_type_id y code son obligatorios",
       });
     }
 
-    const client = await Client.findByPk(client_id);
+    /* const client = await Client.findByPk(client_id);
     if (!client) {
       return res.status(404).json({ ok: false, message: "Cliente no encontrado" });
-    }
+    } */
 
     const garmentType = await GarmentType.findByPk(garment_type_id);
     if (!garmentType) {
@@ -170,7 +167,6 @@ export async function updateGarment(req: Request, res: Response) {
 
     const existingCode = await Garment.findOne({
       where: {
-        client_id,
         code: code.trim(),
         id: { [Op.ne]: id },
       },
@@ -200,7 +196,6 @@ export async function updateGarment(req: Request, res: Response) {
     }
 
     await garment.update({
-      client_id,
       garment_type_id,
       code: code.trim(),
       description: description || null,

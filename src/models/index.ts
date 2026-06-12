@@ -80,14 +80,14 @@ User.belongsTo(Client, {
     as: "client",
 });
 
-Client.hasMany(Garment, {
+/* Client.hasMany(Garment, {
     foreignKey: "client_id",
     as: "garments",
 });
 Garment.belongsTo(Client, {
     foreignKey: "client_id",
     as: "client",
-});
+}); */
 
 GarmentType.hasMany(Garment, {
     foreignKey: "garment_type_id",
