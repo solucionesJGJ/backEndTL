@@ -9,6 +9,7 @@ import {
     isAdmin,
     isClientOperator,
 } from "../helpers/auth.helper.js";
+import { Op } from "sequelize";
 
 const allowedTransitions: Record<string, string[]> = {
     EN_PROCESO: ['REPROCESO', 'PREPARADO_DESPACHO'],
@@ -17,6 +18,41 @@ const allowedTransitions: Record<string, string[]> = {
     PREPARADO_DESPACHO: ['EN_TRASLADO'],
     EN_TRASLADO: ['RETORNADO_CLIENTE'],
     RETORNADO_CLIENTE: ['CERRADO'],
+}
+
+function buildClientPrefix(clientName: string) {
+    return clientName
+        .split(/\s+/)
+        .map((word) => word[0])
+        .join("")
+        .slice(0, 3)
+        .toLowerCase();
+}
+
+async function generateBatchNumber(clientName: string) {
+    const prefix = buildClientPrefix(clientName);
+
+    const lastBatch = await GarmentBatch.findOne({
+        where: {
+            batch_number: {
+                [Op.iLike]: `lote-${prefix}-%`,
+            },
+        },
+        order: [["createdAt", "DESC"]],
+    });
+
+    let nextNumber = 1;
+
+    if (lastBatch) {
+        const parts = lastBatch.batch_number.split("-");
+        const lastNumber = Number(parts[2]);
+
+        if (!Number.isNaN(lastNumber)) {
+            nextNumber = lastNumber + 1;
+        }
+    }
+
+    return `lote-${prefix}-${String(nextNumber).padStart(3, "0")}`;
 }
 
 export async function getOperatorBatches(req: Request, res: Response) {
@@ -93,9 +129,6 @@ export async function createOperatorBatch(req: Request, res: Response) {
     try {
         const {
             client_id,
-            batch_number,
-            origin_location,
-            destination_location,
             notes,
         } = req.body;
 
@@ -109,13 +142,6 @@ export async function createOperatorBatch(req: Request, res: Response) {
         }
 
         const roleName = user.role?.name;
-
-        if (!batch_number?.trim()) {
-            return res.status(400).json({
-                ok: false,
-                message: "batch_number es obligatorio",
-            });
-        }
 
         let finalClientId: string | null = null;
 
@@ -157,22 +183,9 @@ export async function createOperatorBatch(req: Request, res: Response) {
             });
         }
 
-        const existingBatch = await GarmentBatch.findOne({
-            where: {
-                batch_number: batch_number.trim(),
-            },
-        });
-
-        if (existingBatch) {
-            return res.status(409).json({
-                ok: false,
-                message: "Ya existe un lote con ese número",
-            });
-        }
-
         const initialStatus = await MovementStatus.findOne({
             where: {
-                code: "PENDIENTE_RECEPCION",
+                code: "BORRADOR_CLIENTE",
             },
         });
 
@@ -183,12 +196,14 @@ export async function createOperatorBatch(req: Request, res: Response) {
             });
         }
 
+        const batchNumber = await generateBatchNumber(client.name);
+
         const batch = await GarmentBatch.create({
             client_id: finalClientId || '',
-            batch_number: batch_number.trim(),
+            batch_number: batchNumber,
             created_by: user.id,
-            origin_location: origin_location || "Cliente",
-            destination_location: destination_location || "Planta Central",
+            origin_location: "Cliente",
+            destination_location: "Planta Central",
             current_status_id: initialStatus.id,
             received_at: new Date(),
             notes: notes || null,
@@ -434,6 +449,142 @@ export async function changeOperatorBatchStatus(req: Request, res: Response) {
         return res.status(500).json({
             ok: false,
             message: 'Error actualizando estado del lote',
+        })
+    }
+}
+
+export async function dispatchClientBatch(req: Request, res: Response) {
+    try {
+        const { id } = req.params;
+        const user = req.user;
+
+        const batch = await GarmentBatch.findByPk(id, {
+            include: [
+                {
+                    model: MovementStatus,
+                    as: "current_status",
+                    attributes: ["id", "code", "name"],
+                },
+            ],
+        });
+
+        if (!batch) {
+            return res.status(404).json({
+                ok: false,
+                message: "Lote no encontrado",
+            });
+        }
+
+        const batchJson = batch.toJSON() as any;
+
+        if (
+            user?.role?.name === "client_operator" &&
+            batch.client_id !== user.client_id
+        ) {
+            return res.status(403).json({
+                ok: false,
+                message: "No puedes despachar lotes de otro cliente",
+            });
+        }
+
+        if (batchJson.current_status?.code !== "BORRADOR_CLIENTE") {
+            return res.status(400).json({
+                ok: false,
+                message: "Solo se pueden despachar lotes en borrador",
+            });
+        }
+
+        const pendingStatus = await MovementStatus.findOne({
+            where: {
+                code: "PENDIENTE_RECEPCION",
+            },
+        });
+
+        if (!pendingStatus) {
+            return res.status(500).json({
+                ok: false,
+                message: "No existe estado PENDIENTE_RECEPCION",
+            });
+        }
+
+        await batch.update({
+            current_status_id: pendingStatus.id,
+            notes: [batch.notes, "Despachado desde cliente"]
+                .filter(Boolean)
+                .join("\n"),
+        });
+
+        return res.json({
+            ok: true,
+            message: "Lote despachado a planta correctamente",
+            data: batch,
+        });
+    } catch (error) {
+        console.error(error);
+
+        return res.status(500).json({
+            ok: false,
+            message: "Error despachando lote",
+        });
+    }
+}
+
+export async function previewOperatorBatchNumber(req: Request, res: Response) {
+    try {
+        const { client_id } = req.query
+        const user = req.user
+
+        if (!user) {
+            return res.status(401).json({
+                ok: false,
+                message: 'Usuario no autenticado',
+            })
+        }
+
+        const roleName = user.role?.name
+
+        let finalClientId: string | null = null
+
+        if (roleName === 'client_operator') {
+            finalClientId = user.client_id
+        }
+
+        if (roleName === 'admin') {
+            finalClientId = client_id as string
+        }
+
+        if (!finalClientId) {
+            return res.status(400).json({
+                ok: false,
+                message: 'client_id es obligatorio',
+            })
+        }
+
+        const client = await Client.findByPk(finalClientId)
+
+        if (!client) {
+            return res.status(404).json({
+                ok: false,
+                message: 'Cliente no encontrado',
+            })
+        }
+
+        const batchNumber = await generateBatchNumber(client.name)
+
+        return res.json({
+            ok: true,
+            data: {
+                batch_number: batchNumber,
+                origin_location: 'Cliente',
+                destination_location: 'Planta',
+            },
+        })
+    } catch (error) {
+        console.error(error)
+
+        return res.status(500).json({
+            ok: false,
+            message: 'Error generando número de lote',
         })
     }
 }

@@ -3,9 +3,11 @@ import { Router } from "express";
 import {
     changeOperatorBatchStatus,
     createOperatorBatch,
+    dispatchClientBatch,
     evaluateOperatorBatch,
     getOperatorBatchById,
     getOperatorBatches,
+    previewOperatorBatchNumber,
     receiveOperatorBatch,
 } from "../controllers/operator-batch.controller.js";
 
@@ -35,6 +37,12 @@ router.get(
     "/batches",
     requireRole("admin", "client_operator", "warehouse_operator"),
     getOperatorBatches
+);
+
+router.get(
+    '/batches/preview-number',
+    requireRole('admin', 'client_operator'),
+    previewOperatorBatchNumber,
 );
 
 router.get(
@@ -117,6 +125,12 @@ router.post(
     "/batches/:batchId/movements",
     requireRole("admin", "warehouse_operator"),
     createBatchMovement
+);
+
+router.patch(
+    "/batches/:id/dispatch",
+    requireRole("admin", "client_operator"),
+    dispatchClientBatch
 );
 
 export default router;

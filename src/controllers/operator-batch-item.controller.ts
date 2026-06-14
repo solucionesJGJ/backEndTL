@@ -99,11 +99,11 @@ async function assertBatchEditableByClient(batchId: string, req: Request) {
         };
     }
 
-    if (batchJson.current_status?.code !== "PENDIENTE_RECEPCION") {
+    if (batchJson.current_status?.code !== "BORRADOR_CLIENTE") {
         return {
             ok: false,
             status: 400,
-            message: "Solo se pueden modificar prendas de lotes pendientes de recepción",
+            message: "Solo se pueden modificar prendas de lotes en borrador",
             batch: null,
         };
     }

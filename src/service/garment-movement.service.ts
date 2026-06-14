@@ -39,10 +39,10 @@ export async function createGarmentMovement(input: CreateMovementInput) {
     if (!garment) {
       throw new Error("Prenda no encontrada");
     }
-
+/* 
     if (garment.client_id !== batch.client_id) {
       throw new Error("La prenda no pertenece al cliente del lote");
-    }
+    } */
 
     const toStatus = await MovementStatus.findByPk(input.to_status_id, {
       transaction,
@@ -63,7 +63,7 @@ export async function createGarmentMovement(input: CreateMovementInput) {
 
       const fromStock = await GarmentStock.findOne({
         where: {
-          client_id: garment.client_id,
+          client_id: batch.client_id,
           garment_id: input.garment_id,
           status_id: input.from_status_id,
         },
@@ -85,12 +85,12 @@ export async function createGarmentMovement(input: CreateMovementInput) {
 
     const [toStock] = await GarmentStock.findOrCreate({
       where: {
-        client_id: garment.client_id,
+        client_id: batch.client_id,
         garment_id: input.garment_id,
         status_id: input.to_status_id,
       },
       defaults: {
-        client_id: garment.client_id,
+        client_id: batch.client_id,
         garment_id: input.garment_id,
         status_id: input.to_status_id,
         quantity: 0,

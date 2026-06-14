@@ -47,6 +47,11 @@ async function seedDatabase() {
         await MovementStatus.bulkCreate(
             [
                 {
+                    code: "BORRADOR_CLIENTE",
+                    name: "Borrador cliente",
+                    sort_order: 0,
+                },
+                {
                     code: "PENDIENTE_RECEPCION",
                     name: "Pendiente recepción",
                     sort_order: 1,
