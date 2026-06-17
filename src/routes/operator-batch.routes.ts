@@ -107,7 +107,7 @@ router.patch(
 
 router.patch(
     "/batches/:id/change-status",
-    requireRole("admin", "warehouse_operator"),
+    requireRole("admin", "warehouse_operator", "client_operator"),
     changeOperatorBatchStatus
 );
 

@@ -11,6 +11,30 @@ import {
 } from "../helpers/auth.helper.js";
 import { Op } from "sequelize";
 
+
+function canRoleExecuteTransition(
+    roleName: string | undefined,
+    currentStatusCode: string,
+    nextStatusCode: string,
+) {
+    if (roleName === 'admin') return true
+
+    if (roleName === 'warehouse_operator') {
+        return (
+            currentStatusCode !== 'RETORNADO_CLIENTE' &&
+            nextStatusCode !== 'CERRADO'
+        )
+    }
+
+    if (roleName === 'client_operator') {
+        return (
+            currentStatusCode === 'RETORNADO_CLIENTE' &&
+            nextStatusCode === 'CERRADO'
+        )
+    }
+
+    return false
+}
 const allowedTransitions: Record<string, string[]> = {
     EN_PROCESO: ['REPROCESO', 'PREPARADO_DESPACHO'],
     REPROCESO: ['EN_PROCESO', 'PREPARADO_DESPACHO'],
@@ -412,6 +436,25 @@ export async function changeOperatorBatchStatus(req: Request, res: Response) {
             return res.status(400).json({
                 ok: false,
                 message: `No se permite cambiar de ${currentCode} a ${next_status_code}`,
+            })
+        }
+
+        const roleName = req.user?.role?.name
+
+        if (
+            roleName === 'client_operator' &&
+            batch.client_id !== req.user?.client_id
+        ) {
+            return res.status(403).json({
+                ok: false,
+                message: 'No puedes cerrar lotes de otro cliente',
+            })
+        }
+
+        if (!canRoleExecuteTransition(roleName, currentCode, next_status_code)) {
+            return res.status(403).json({
+                ok: false,
+                message: 'No tienes permisos para realizar esta transición',
             })
         }
 
