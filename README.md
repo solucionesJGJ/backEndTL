@@ -52,8 +52,6 @@ El seed crea:
 - Estados de movimiento: desde `BORRADOR_CLIENTE` hasta `CERRADO`.
 - Procesos de prenda: `SUCIO_NORMAL`, `MANCHADO`, `REPROCESO`.
 
-Nota: las rutas de tipos de prenda permiten el rol `operator`, pero el seed actual no crea ese rol. Para usar esos endpoints con datos iniciales, utiliza `admin` o ajusta la ruta/seed segun corresponda.
-
 ## Ejecucion
 
 Modo desarrollo con recarga:
@@ -87,6 +85,23 @@ La mayoria de endpoints requieren JWT enviado por header:
 ```http
 Authorization: Bearer <token>
 ```
+
+Crear el primer administrador:
+
+```http
+POST /api/auth/bootstrap-admin
+Content-Type: application/json
+```
+
+```json
+{
+  "name": "Administrador",
+  "email": "admin@example.com",
+  "password": "password123"
+}
+```
+
+Este endpoint es publico solo para inicializar el sistema. Si ya existe cualquier usuario en la tabla `users`, responde `409` y no crea nada.
 
 Login:
 
@@ -210,4 +225,4 @@ src/
 - Los IDs son UUID.
 - La base usa nombres de columnas `underscored` en PostgreSQL.
 - No hay migraciones versionadas; el esquema se actualiza con `sequelize.sync({ alter: true })`.
-- No hay usuario inicial creado por seed. Para hacer login, debe existir al menos un usuario activo con password hasheado y rol valido.
+- El primer usuario administrador se crea con `POST /api/auth/bootstrap-admin` despues de sincronizar y sembrar la base de datos.

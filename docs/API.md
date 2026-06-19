@@ -36,9 +36,30 @@ Respuesta de error tipica:
 
 | Metodo | Ruta | Roles | Descripcion |
 | --- | --- | --- | --- |
+| `POST` | `/auth/bootstrap-admin` | Publico inicial | Crea el primer administrador solo si no existe ningun usuario. |
 | `POST` | `/auth/login` | Publico | Inicia sesion y devuelve JWT. |
 
-Payload:
+Payload para bootstrap:
+
+```json
+{
+  "name": "Administrador",
+  "email": "admin@example.com",
+  "password": "password123"
+}
+```
+
+Reglas:
+
+- Requiere `JWT_SECRET` configurado.
+- `name`, `email` y `password` son obligatorios.
+- `email` debe ser valido.
+- `password` debe tener al menos 8 caracteres.
+- Si ya existe cualquier usuario, responde `409`.
+- Crea o reutiliza el rol `admin`.
+- Devuelve el usuario creado y un JWT.
+
+Payload para login:
 
 ```json
 {
@@ -101,7 +122,8 @@ Notas:
 
 - `password` debe tener al menos 8 caracteres.
 - `email` debe ser unico.
-- El codigo actualmente valida cliente obligatorio solo cuando `role.name === "client"`, aunque el seed usa `client_operator`.
+- Los usuarios con rol `client_operator` deben tener `client_id`.
+- Los usuarios con rol `admin` o `warehouse_operator` quedan sin `client_id`.
 
 ## Roles
 
@@ -113,8 +135,8 @@ Notas:
 
 | Metodo | Ruta | Roles | Descripcion |
 | --- | --- | --- | --- |
-| `GET` | `/garment-types` | `admin`, `operator` | Lista tipos. |
-| `GET` | `/garment-types/:id` | `admin`, `operator` | Obtiene tipo. |
+| `GET` | `/garment-types` | `admin`, `warehouse_operator`, `client_operator` | Lista tipos. |
+| `GET` | `/garment-types/:id` | `admin`, `warehouse_operator`, `client_operator` | Obtiene tipo. |
 | `POST` | `/garment-types` | `admin` | Crea tipo. |
 | `PUT` | `/garment-types/:id` | `admin` | Actualiza tipo. |
 | `DELETE` | `/garment-types/:id` | `admin` | Elimina tipo. |

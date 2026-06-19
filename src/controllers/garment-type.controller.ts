@@ -24,7 +24,7 @@ export async function getGarmentTypes(req: Request, res: Response) {
 
 export async function getGarmentTypeById(req: Request, res: Response) {
     try {
-        const { id } = req.params;
+        const id = req.params.id as string;
 
         const garmentType = await GarmentType.findByPk(id);
 
@@ -96,7 +96,7 @@ export async function createGarmentType(req: Request, res: Response) {
 
 export async function updateGarmentType(req: Request, res: Response) {
     try {
-        const { id } = req.params;
+        const id = req.params.id as string;
         const { name, description, active } = req.body;
 
         const garmentType = await GarmentType.findByPk(id);
@@ -154,7 +154,7 @@ export async function updateGarmentType(req: Request, res: Response) {
 
 export async function deleteGarmentType(req: Request, res: Response) {
     try {
-        const { id } = req.params;
+        const id = req.params.id as string;
 
         const garmentType = await GarmentType.findByPk(id);
 
@@ -183,7 +183,7 @@ export async function deleteGarmentType(req: Request, res: Response) {
 
 export async function deactivateGarmentType(req: Request, res: Response) {
     try {
-        const { id } = req.params;
+        const id = req.params.id as string;
 
         const garmentType = await GarmentType.findByPk(id);
 

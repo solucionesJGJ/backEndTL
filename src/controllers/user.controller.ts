@@ -4,6 +4,10 @@ import type { Request, Response } from "express";
 import { Client, Role, User } from "../models/index.js";
 import { isValidEmail } from "../utils/validators.js";
 
+function roleRequiresClient(roleName: string) {
+    return roleName === "client_operator";
+}
+
 export async function getUsers(req: Request, res: Response) {
     try {
         const users = await User.findAll({
@@ -25,6 +29,8 @@ export async function getUsers(req: Request, res: Response) {
 export async function createUser(req: Request, res: Response) {
     try {
         const { name, email, password, role_id, client_id } = req.body;
+        const normalizedEmail = email?.trim().toLowerCase();
+
         if (!isValidEmail(email)) {
             return res.status(400).json({
                 ok: false,
@@ -46,7 +52,7 @@ export async function createUser(req: Request, res: Response) {
             });
         }
 
-        const existingUser = await User.findOne({ where: { email } });
+        const existingUser = await User.findOne({ where: { email: normalizedEmail } });
 
         if (existingUser) {
             return res.status(409).json({
@@ -64,7 +70,7 @@ export async function createUser(req: Request, res: Response) {
             });
         }
 
-        if (role.name === "client" && !client_id) {
+        if (roleRequiresClient(role.name) && !client_id) {
             return res.status(400).json({
                 ok: false,
                 message: "Los usuarios cliente deben tener un cliente asociado",
@@ -86,10 +92,10 @@ export async function createUser(req: Request, res: Response) {
 
         const user = await User.create({
             name,
-            email,
+            email: normalizedEmail,
             password_hash: passwordHash,
             role_id,
-            client_id: client_id || null,
+            client_id: roleRequiresClient(role.name) ? client_id : null,
             active: true,
         });
 
@@ -113,8 +119,9 @@ export async function createUser(req: Request, res: Response) {
 
 export async function updateUser(req: Request, res: Response) {
     try {
-        const { id } = req.params;
+        const id = req.params.id as string;
         const { name, email, password, role_id, client_id, active } = req.body;
+        const normalizedEmail = email?.trim().toLowerCase();
 
         const user = await User.findByPk(id);
 
@@ -134,7 +141,7 @@ export async function updateUser(req: Request, res: Response) {
 
         const existingEmail = await User.findOne({
             where: {
-                email,
+                email: normalizedEmail,
                 id: { [Op.ne]: id },
             },
         });
@@ -155,7 +162,7 @@ export async function updateUser(req: Request, res: Response) {
             });
         }
 
-        if (role.name === "client" && !client_id) {
+        if (roleRequiresClient(role.name) && !client_id) {
             return res.status(400).json({
                 ok: false,
                 message: "Los usuarios cliente deben tener un cliente asociado",
@@ -175,9 +182,9 @@ export async function updateUser(req: Request, res: Response) {
 
         const updatePayload: any = {
             name,
-            email,
+            email: normalizedEmail,
             role_id,
-            client_id: role.name === "client" ? client_id : null,
+            client_id: roleRequiresClient(role.name) ? client_id : null,
             active: typeof active === "boolean" ? active : user.active,
         };
 
@@ -207,7 +214,7 @@ export async function updateUser(req: Request, res: Response) {
 
 export async function deactivateUser(req: Request, res: Response) {
     try {
-        const { id } = req.params;
+        const id = req.params.id as string;
 
         const user = await User.findByPk(id);
 

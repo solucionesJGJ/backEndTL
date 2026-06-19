@@ -15,14 +15,14 @@ const router = Router();
 router.get(
     "/",
     authMiddleware,
-    requireRole("admin", "operator"),
+    requireRole("admin", "warehouse_operator", "client_operator"),
     getGarmentTypes
 );
 
 router.get(
     "/:id",
     authMiddleware,
-    requireRole("admin", "operator"),
+    requireRole("admin", "warehouse_operator", "client_operator"),
     getGarmentTypeById
 );
 
