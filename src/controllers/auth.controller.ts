@@ -2,7 +2,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import type { Request, Response } from "express";
 import { Role, User, Client } from "../models/index.js";
-import { isValidEmail, normalizeText } from "../utils/validators.js";
+import { isNonEmptyString, isValidEmail, normalizeText } from "../utils/validators.js";
 
 function buildToken(user: User, roleName?: string) {
     const tokenPayload = {
@@ -29,7 +29,7 @@ export async function bootstrapAdmin(req: Request, res: Response) {
         if (!process.env.JWT_SECRET) {
             return res.status(500).json({
                 ok: false,
-                message: "JWT_SECRET no estÃ¡ configurado",
+                message: "JWT_SECRET no esta configurado",
             });
         }
 
@@ -42,24 +42,26 @@ export async function bootstrapAdmin(req: Request, res: Response) {
             });
         }
 
-        if (!name?.trim() || !email?.trim() || !password) {
+        if (!isNonEmptyString(name) || !isNonEmptyString(email) || !isNonEmptyString(password)) {
             return res.status(400).json({
                 ok: false,
                 message: "name, email y password son obligatorios",
             });
         }
 
-        if (!isValidEmail(email)) {
+        const normalizedEmail = email.trim().toLowerCase();
+
+        if (!isValidEmail(normalizedEmail)) {
             return res.status(400).json({
                 ok: false,
-                message: "El email no es vÃ¡lido",
+                message: "El email no es valido",
             });
         }
 
         if (password.length < 8) {
             return res.status(400).json({
                 ok: false,
-                message: "La contraseÃ±a debe tener al menos 8 caracteres",
+                message: "La contrasena debe tener al menos 8 caracteres",
             });
         }
 
@@ -75,7 +77,7 @@ export async function bootstrapAdmin(req: Request, res: Response) {
 
         const user = await User.create({
             name: normalizeText(name),
-            email: email.trim().toLowerCase(),
+            email: normalizedEmail,
             password_hash: passwordHash,
             role_id: adminRole.id,
             client_id: null,
@@ -114,16 +116,18 @@ export async function login(req: Request, res: Response) {
     try {
         const { email, password } = req.body;
 
-        if (!email || !password) {
+        if (!isNonEmptyString(email) || !isNonEmptyString(password)) {
             return res.status(400).json({
                 ok: false,
                 message: "email y password son obligatorios",
             });
         }
 
+        const normalizedEmail = email.trim().toLowerCase();
+
         const user = await User.findOne({
             where: {
-                email: email.trim().toLowerCase(),
+                email: normalizedEmail,
                 active: true,
             },
             include: [
@@ -143,7 +147,7 @@ export async function login(req: Request, res: Response) {
         if (!user) {
             return res.status(401).json({
                 ok: false,
-                message: "Credenciales inválidas",
+                message: "Credenciales invalidas",
             });
         }
 
@@ -155,7 +159,7 @@ export async function login(req: Request, res: Response) {
         if (!passwordIsValid) {
             return res.status(401).json({
                 ok: false,
-                message: "Credenciales inválidas",
+                message: "Credenciales invalidas",
             });
         }
 
@@ -180,7 +184,7 @@ export async function login(req: Request, res: Response) {
 
         return res.status(500).json({
             ok: false,
-            message: "Error iniciando sesión",
+            message: "Error iniciando sesion",
         });
     }
 }

@@ -1,7 +1,7 @@
 import { Op } from "sequelize";
 import type { Request, Response } from "express";
 import { GarmentProcess } from "../models/index.js";
-import { isNonNegativeNumber } from "../utils/validators.js";
+import { isNonEmptyString, isOptionalNonNegativeNumber, normalizeCode, normalizeText } from "../utils/validators.js";
 
 export async function getGarmentProcesses(req: Request, res: Response) {
     try {
@@ -26,23 +26,26 @@ export async function createGarmentProcess(req: Request, res: Response) {
     try {
         const { name, code, percentage } = req.body;
         
-        if (!isNonNegativeNumber(percentage)) {
-            return res.status(400).json({
-                ok: false,
-                message: 'El porcentaje no puede ser negativo',
-            })
-        }
-
-        if (!name?.trim() || !code?.trim()) {
+        if (!isNonEmptyString(name) || !isNonEmptyString(code)) {
             return res.status(400).json({
                 ok: false,
                 message: "name y code son obligatorios",
             });
         }
 
+        if (!isOptionalNonNegativeNumber(percentage)) {
+            return res.status(400).json({
+                ok: false,
+                message: 'El porcentaje no puede ser negativo',
+            })
+        }
+
+        const normalizedName = normalizeText(name);
+        const normalizedCode = normalizeCode(code);
+
         const existing = await GarmentProcess.findOne({
             where: {
-                [Op.or]: [{ name: name.trim() }, { code: code.trim().toUpperCase() }],
+                [Op.or]: [{ name: normalizedName }, { code: normalizedCode }],
             },
         });
 
@@ -54,8 +57,8 @@ export async function createGarmentProcess(req: Request, res: Response) {
         }
 
         const process = await GarmentProcess.create({
-            name: name.trim(),
-            code: code.trim().toUpperCase(),
+            name: normalizedName,
+            code: normalizedCode,
             percentage: Number(percentage || 0),
             active: true,
         });
@@ -76,7 +79,7 @@ export async function createGarmentProcess(req: Request, res: Response) {
 
 export async function updateGarmentProcess(req: Request, res: Response) {
     try {
-        const { id } = req.params;
+        const id = req.params.id as string;
         const { name, code, percentage, active } = req.body;
 
         const process = await GarmentProcess.findByPk(id);
@@ -88,17 +91,27 @@ export async function updateGarmentProcess(req: Request, res: Response) {
             });
         }
 
-        if (!name?.trim() || !code?.trim()) {
+        if (!isNonEmptyString(name) || !isNonEmptyString(code)) {
             return res.status(400).json({
                 ok: false,
                 message: "name y code son obligatorios",
             });
         }
 
+        if (!isOptionalNonNegativeNumber(percentage)) {
+            return res.status(400).json({
+                ok: false,
+                message: "El porcentaje no puede ser negativo",
+            });
+        }
+
+        const normalizedName = normalizeText(name);
+        const normalizedCode = normalizeCode(code);
+
         const existing = await GarmentProcess.findOne({
             where: {
                 id: { [Op.ne]: id },
-                [Op.or]: [{ name: name.trim() }, { code: code.trim().toUpperCase() }],
+                [Op.or]: [{ name: normalizedName }, { code: normalizedCode }],
             },
         });
 
@@ -110,8 +123,8 @@ export async function updateGarmentProcess(req: Request, res: Response) {
         }
 
         await process.update({
-            name: name.trim(),
-            code: code.trim().toUpperCase(),
+            name: normalizedName,
+            code: normalizedCode,
             percentage: Number(percentage || 0),
             active: typeof active === "boolean" ? active : process.active,
         });
@@ -132,7 +145,7 @@ export async function updateGarmentProcess(req: Request, res: Response) {
 
 export async function deactivateGarmentProcess(req: Request, res: Response) {
     try {
-        const { id } = req.params;
+        const id = req.params.id as string;
 
         const process = await GarmentProcess.findByPk(id);
 

@@ -155,6 +155,8 @@ Respuesta exitosa:
 6. Planta/admin registra transiciones operativas.
 7. Cliente cierra el lote cuando queda en `RETORNADO_CLIENTE`.
 
+Punto importante: el `client_operator` solo puede modificar prendas del lote mientras el lote esta en `BORRADOR_CLIENTE`. Una vez enviado a despacho y cambiado a `PENDIENTE_RECEPCION`, ya no puede agregar, editar ni eliminar items del lote.
+
 Transiciones generales permitidas:
 
 | Desde | Hacia |
@@ -202,7 +204,24 @@ La referencia de endpoints esta en [docs/API.md](docs/API.md).
 | `npm start` | Ejecuta la API con `.env.dev`. |
 | `npm run db:sync` | Sincroniza modelos Sequelize contra PostgreSQL usando `alter: true`. |
 | `npm run db:seed` | Carga roles, estados y procesos iniciales. |
-| `npm test` | No hay tests configurados actualmente. |
+| `npm test` | Ejecuta la suite automatizada con `node:test` y `tsx`. |
+
+## Tests
+
+La suite usa el runner nativo de Node (`node:test`) ejecutado por `tsx`, por lo que no requiere compilar TypeScript antes ni instalar librerias adicionales.
+
+Ejecutar tests:
+
+```bash
+npm test
+```
+
+Cobertura actual:
+
+- Validadores compartidos: RUT, email, telefono chileno, strings requeridos, numeros, enteros y normalizadores.
+- `POST /api/auth/bootstrap-admin`: valida `JWT_SECRET`, bloqueo cuando ya existen usuarios, payload invalido y creacion exitosa con datos normalizados.
+
+Los tests del controlador usan mocks de modelos Sequelize, por lo que no requieren una base de datos activa.
 
 ## Estructura del proyecto
 

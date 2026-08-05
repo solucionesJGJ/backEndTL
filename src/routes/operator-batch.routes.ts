@@ -77,6 +77,22 @@ router.post(
     addBatchItem
 );
 
+/**
+ * Movimientos de inventario
+ * Solo planta y admin
+ */
+router.get(
+    "/batches/:batchId/movements",
+    requireRole("admin", "warehouse_operator", "client_operator"),
+    getBatchMovements
+);
+
+router.post(
+    "/batches/:batchId/movements",
+    requireRole("admin", "warehouse_operator"),
+    createBatchMovement
+);
+
 router.put(
     "/batches/:batchId/items/:itemId",
     requireRole("admin", "client_operator"),
@@ -104,33 +120,16 @@ router.patch(
     requireRole("admin", "warehouse_operator"),
     evaluateOperatorBatch
 );
+router.patch(
+    "/batches/:id/dispatch",
+    requireRole("admin", "client_operator"),
+    dispatchClientBatch
+);
 
 router.patch(
     "/batches/:id/change-status",
     requireRole("admin", "warehouse_operator", "client_operator"),
     changeOperatorBatchStatus
-);
-
-/**
- * Movimientos de inventario
- * Solo planta y admin
- */
-router.get(
-    "/batches/:batchId/movements",
-    requireRole("admin", "warehouse_operator", "client_operator"),
-    getBatchMovements
-);
-
-router.post(
-    "/batches/:batchId/movements",
-    requireRole("admin", "warehouse_operator"),
-    createBatchMovement
-);
-
-router.patch(
-    "/batches/:id/dispatch",
-    requireRole("admin", "client_operator"),
-    dispatchClientBatch
 );
 
 export default router;

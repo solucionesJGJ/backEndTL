@@ -2,7 +2,11 @@ import type { Request, Response } from "express";
 import {
     Client,
     GarmentBatch,
+    GarmentBatchItem,
+    GarmentMovement,
+    GarmentStock,
     MovementStatus,
+    sequelize,
     User,
 } from "../models/index.js";
 import {
@@ -10,6 +14,7 @@ import {
     isClientOperator,
 } from "../helpers/auth.helper.js";
 import { Op } from "sequelize";
+import { isNonEmptyString } from "../utils/validators.js";
 
 
 function canRoleExecuteTransition(
@@ -115,7 +120,7 @@ export async function getOperatorBatches(req: Request, res: Response) {
 
 export async function getOperatorBatchById(req: Request, res: Response) {
     try {
-        const { id } = req.params;
+        const id = req.params.id as string;
 
         const batch = await GarmentBatch.findByPk(id, {
             include: [
@@ -181,14 +186,14 @@ export async function createOperatorBatch(req: Request, res: Response) {
         }
 
         if (roleName === "admin") {
-            if (!client_id) {
+            if (typeof client_id !== "string" || !client_id.trim()) {
                 return res.status(400).json({
                     ok: false,
                     message: "client_id es obligatorio para administrador",
                 });
             }
 
-            finalClientId = client_id;
+            finalClientId = client_id.trim();
         }
 
         if (roleName !== "admin" && roleName !== "client_operator") {
@@ -229,7 +234,7 @@ export async function createOperatorBatch(req: Request, res: Response) {
             origin_location: "Cliente",
             destination_location: "Planta Central",
             current_status_id: initialStatus.id,
-            received_at: new Date(),
+            received_at: null,
             notes: notes || null,
         });
 
@@ -249,8 +254,10 @@ export async function createOperatorBatch(req: Request, res: Response) {
 }
 
 export async function receiveOperatorBatch(req: Request, res: Response) {
+    const transaction = await sequelize.transaction()
+
     try {
-        const { id } = req.params;
+        const id = req.params.id as string;
         const { notes } = req.body;
 
         const batch = await GarmentBatch.findByPk(id, {
@@ -261,9 +268,11 @@ export async function receiveOperatorBatch(req: Request, res: Response) {
                     attributes: ["id", "code", "name"],
                 },
             ],
+            transaction,
         });
 
         if (!batch) {
+            await transaction.rollback()
             return res.status(404).json({
                 ok: false,
                 message: "Lote no encontrado",
@@ -273,6 +282,7 @@ export async function receiveOperatorBatch(req: Request, res: Response) {
         const batchJson = batch.toJSON() as any;
 
         if (batchJson.current_status?.code !== "PENDIENTE_RECEPCION") {
+            await transaction.rollback()
             return res.status(400).json({
                 ok: false,
                 message: "Solo se pueden recepcionar lotes en estado Pendiente Recepción",
@@ -283,9 +293,11 @@ export async function receiveOperatorBatch(req: Request, res: Response) {
             where: {
                 code: "RECEPCIONADO",
             },
+            transaction,
         });
 
         if (!receivedStatus) {
+            await transaction.rollback()
             return res.status(500).json({
                 ok: false,
                 message: "No existe estado RECEPCIONADO",
@@ -296,7 +308,9 @@ export async function receiveOperatorBatch(req: Request, res: Response) {
             current_status_id: receivedStatus.id,
             received_at: new Date(),
             notes: notes ? `${batch.notes || ""}\nRecepción: ${notes}` : batch.notes,
-        });
+        }, { transaction });
+
+        await transaction.commit()
 
         return res.json({
             ok: true,
@@ -304,6 +318,7 @@ export async function receiveOperatorBatch(req: Request, res: Response) {
             data: batch,
         });
     } catch (error) {
+        await transaction.rollback()
         console.error(error);
 
         return res.status(500).json({
@@ -314,11 +329,14 @@ export async function receiveOperatorBatch(req: Request, res: Response) {
 }
 
 export async function evaluateOperatorBatch(req: Request, res: Response) {
+    const transaction = await sequelize.transaction()
+
     try {
-        const { id } = req.params;
+        const id = req.params.id as string;
         const { can_process, notes } = req.body;
 
         if (typeof can_process !== "boolean") {
+            await transaction.rollback()
             return res.status(400).json({
                 ok: false,
                 message: "can_process debe ser boolean",
@@ -333,9 +351,11 @@ export async function evaluateOperatorBatch(req: Request, res: Response) {
                     attributes: ["id", "code", "name"],
                 },
             ],
+            transaction,
         });
 
         if (!batch) {
+            await transaction.rollback()
             return res.status(404).json({
                 ok: false,
                 message: "Lote no encontrado",
@@ -345,6 +365,7 @@ export async function evaluateOperatorBatch(req: Request, res: Response) {
         const batchJson = batch.toJSON() as any;
 
         if (batchJson.current_status?.code !== "RECEPCIONADO") {
+            await transaction.rollback()
             return res.status(400).json({
                 ok: false,
                 message: "Solo se pueden evaluar lotes en estado Recepcionado",
@@ -357,9 +378,11 @@ export async function evaluateOperatorBatch(req: Request, res: Response) {
             where: {
                 code: nextStatusCode,
             },
+            transaction,
         });
 
         if (!nextStatus) {
+            await transaction.rollback()
             return res.status(500).json({
                 ok: false,
                 message: `No existe estado ${nextStatusCode}`,
@@ -379,7 +402,9 @@ export async function evaluateOperatorBatch(req: Request, res: Response) {
             ]
                 .filter(Boolean)
                 .join("\n"),
-        });
+        }, { transaction });
+
+        await transaction.commit()
 
         return res.json({
             ok: true,
@@ -399,16 +424,21 @@ export async function evaluateOperatorBatch(req: Request, res: Response) {
 }
 
 export async function changeOperatorBatchStatus(req: Request, res: Response) {
-    try {
-        const { id } = req.params
-        const { next_status_code, notes } = req.body
+    const transaction = await sequelize.transaction()
 
-        if (!next_status_code) {
+    try {
+        const id = req.params.id as string
+        const { next_status_code, notes, client_accepted, client_observation } = req.body
+
+        if (!isNonEmptyString(next_status_code)) {
+            await transaction.rollback()
             return res.status(400).json({
                 ok: false,
                 message: 'next_status_code es obligatorio',
             })
         }
+
+        const nextStatusCode = next_status_code.trim().toUpperCase()
 
         const batch = await GarmentBatch.findByPk(id, {
             include: [
@@ -418,9 +448,11 @@ export async function changeOperatorBatchStatus(req: Request, res: Response) {
                     attributes: ['id', 'code', 'name'],
                 },
             ],
+            transaction,
         })
 
         if (!batch) {
+            await transaction.rollback()
             return res.status(404).json({
                 ok: false,
                 message: 'Lote no encontrado',
@@ -432,10 +464,11 @@ export async function changeOperatorBatchStatus(req: Request, res: Response) {
 
         const allowedNextStatuses = allowedTransitions[currentCode] || []
 
-        if (!allowedNextStatuses.includes(next_status_code)) {
+        if (!allowedNextStatuses.includes(nextStatusCode)) {
+            await transaction.rollback()
             return res.status(400).json({
                 ok: false,
-                message: `No se permite cambiar de ${currentCode} a ${next_status_code}`,
+                message: `No se permite cambiar de ${currentCode} a ${nextStatusCode}`,
             })
         }
 
@@ -445,13 +478,15 @@ export async function changeOperatorBatchStatus(req: Request, res: Response) {
             roleName === 'client_operator' &&
             batch.client_id !== req.user?.client_id
         ) {
+            await transaction.rollback()
             return res.status(403).json({
                 ok: false,
                 message: 'No puedes cerrar lotes de otro cliente',
             })
         }
 
-        if (!canRoleExecuteTransition(roleName, currentCode, next_status_code)) {
+        if (!canRoleExecuteTransition(roleName, currentCode, nextStatusCode)) {
+            await transaction.rollback()
             return res.status(403).json({
                 ok: false,
                 message: 'No tienes permisos para realizar esta transición',
@@ -460,26 +495,40 @@ export async function changeOperatorBatchStatus(req: Request, res: Response) {
 
         const nextStatus = await MovementStatus.findOne({
             where: {
-                code: next_status_code,
+                code: nextStatusCode,
             },
+            transaction,
         })
 
         if (!nextStatus) {
+            await transaction.rollback()
             return res.status(404).json({
                 ok: false,
                 message: 'Estado destino no encontrado',
             })
         }
 
-        const statusNote = `Cambio de estado: ${currentCode} → ${next_status_code}`
+        const clientAcceptedNote =
+            typeof client_accepted === "boolean"
+                ? `Conformidad cliente: ${client_accepted ? "aceptada" : "rechazada"}`
+                : null
+        const clientObservationNote =
+            isNonEmptyString(client_observation)
+                ? `Observacion cliente: ${client_observation.trim()}`
+                : null
+
+        const statusNote = `Cambio de estado: ${currentCode} → ${nextStatusCode}`
 
         await batch.update({
             current_status_id: nextStatus.id,
-            closed_at: next_status_code === 'CERRADO' ? new Date() : batch.closed_at,
+            closed_at: nextStatusCode === 'CERRADO' ? new Date() : batch.closed_at,
             notes: [batch.notes, statusNote, notes ? `Observación: ${notes}` : null]
+                .concat([clientAcceptedNote, clientObservationNote])
                 .filter(Boolean)
                 .join('\n'),
-        })
+        }, { transaction })
+
+        await transaction.commit()
 
         return res.json({
             ok: true,
@@ -487,6 +536,7 @@ export async function changeOperatorBatchStatus(req: Request, res: Response) {
             data: batch,
         })
     } catch (error) {
+        await transaction.rollback()
         console.error(error)
 
         return res.status(500).json({
@@ -497,9 +547,19 @@ export async function changeOperatorBatchStatus(req: Request, res: Response) {
 }
 
 export async function dispatchClientBatch(req: Request, res: Response) {
+    const transaction = await sequelize.transaction()
+
     try {
-        const { id } = req.params;
-        const user = req.user;
+        const id = req.params.id as string
+        const user = req.user
+
+        if (!user) {
+            await transaction.rollback()
+            return res.status(401).json({
+                ok: false,
+                message: "Usuario no autenticado",
+            })
+        }
 
         const batch = await GarmentBatch.findByPk(id, {
             include: [
@@ -509,66 +569,159 @@ export async function dispatchClientBatch(req: Request, res: Response) {
                     attributes: ["id", "code", "name"],
                 },
             ],
-        });
+            transaction,
+        })
 
         if (!batch) {
+            await transaction.rollback()
             return res.status(404).json({
                 ok: false,
                 message: "Lote no encontrado",
-            });
+            })
         }
 
-        const batchJson = batch.toJSON() as any;
+        const batchJson = batch.toJSON() as any
 
         if (
             user?.role?.name === "client_operator" &&
             batch.client_id !== user.client_id
         ) {
+            await transaction.rollback()
             return res.status(403).json({
                 ok: false,
                 message: "No puedes despachar lotes de otro cliente",
-            });
+            })
         }
 
         if (batchJson.current_status?.code !== "BORRADOR_CLIENTE") {
+            await transaction.rollback()
             return res.status(400).json({
                 ok: false,
                 message: "Solo se pueden despachar lotes en borrador",
-            });
+            })
         }
+
+        const draftStatus = await MovementStatus.findOne({
+            where: { code: "BORRADOR_CLIENTE" },
+            transaction,
+        })
 
         const pendingStatus = await MovementStatus.findOne({
-            where: {
-                code: "PENDIENTE_RECEPCION",
-            },
-        });
+            where: { code: "PENDIENTE_RECEPCION" },
+            transaction,
+        })
 
-        if (!pendingStatus) {
+        if (!draftStatus || !pendingStatus) {
+            await transaction.rollback()
             return res.status(500).json({
                 ok: false,
-                message: "No existe estado PENDIENTE_RECEPCION",
-            });
+                message: "No existen estados BORRADOR_CLIENTE o PENDIENTE_RECEPCION",
+            })
         }
 
-        await batch.update({
-            current_status_id: pendingStatus.id,
-            notes: [batch.notes, "Despachado desde cliente"]
-                .filter(Boolean)
-                .join("\n"),
-        });
+        const items = await GarmentBatchItem.findAll({
+            where: { batch_id: id },
+            transaction,
+        })
+
+        if (items.length === 0) {
+            await transaction.rollback()
+            return res.status(400).json({
+                ok: false,
+                message: "No se puede despachar un lote sin prendas",
+            })
+        }
+
+        for (const item of items) {
+            const quantity = Number(item.quantity_sent || 0)
+
+            const originStock = await GarmentStock.findOne({
+                where: {
+                    client_id: batch.client_id,
+                    garment_id: item.garment_id,
+                    status_id: draftStatus.id,
+                },
+                transaction,
+            })
+
+            if (!originStock || Number(originStock.quantity) < quantity) {
+                await transaction.rollback()
+                return res.status(400).json({
+                    ok: false,
+                    message: `Stock insuficiente en borrador para la prenda ${item.garment_id}`,
+                })
+            }
+
+            await originStock.update(
+                {
+                    quantity: Number(originStock.quantity) - quantity,
+                },
+                { transaction },
+            )
+
+            const [destinationStock, createdDestinationStock] =
+                await GarmentStock.findOrCreate({
+                    where: {
+                        client_id: batch.client_id,
+                        garment_id: item.garment_id,
+                        status_id: pendingStatus.id,
+                    },
+                    defaults: {
+                        client_id: batch.client_id,
+                        garment_id: item.garment_id,
+                        status_id: pendingStatus.id,
+                        quantity,
+                    },
+                    transaction,
+                })
+
+            if (!createdDestinationStock) {
+                await destinationStock.update(
+                    {
+                        quantity: Number(destinationStock.quantity || 0) + quantity,
+                    },
+                    { transaction },
+                )
+            }
+
+            await GarmentMovement.create(
+                {
+                    batch_id: id,
+                    garment_id: item.garment_id,
+                    from_status_id: draftStatus.id,
+                    to_status_id: pendingStatus.id,
+                    quantity,
+                    movement_type: "despacho_cliente",
+                    created_by: user.id,
+                    notes: "Despacho automático desde cliente a planta",
+                },
+                { transaction },
+            )
+        }
+
+        await batch.update(
+            {
+                current_status_id: pendingStatus.id,
+                notes: [batch.notes, "Despachado desde cliente"].filter(Boolean).join("\n"),
+            },
+            { transaction },
+        )
+
+        await transaction.commit()
 
         return res.json({
             ok: true,
             message: "Lote despachado a planta correctamente",
             data: batch,
-        });
+        })
     } catch (error) {
-        console.error(error);
+        await transaction.rollback()
+        console.error(error)
 
         return res.status(500).json({
             ok: false,
             message: "Error despachando lote",
-        });
+        })
     }
 }
 
@@ -593,7 +746,7 @@ export async function previewOperatorBatchNumber(req: Request, res: Response) {
         }
 
         if (roleName === 'admin') {
-            finalClientId = client_id as string
+            finalClientId = typeof client_id === "string" ? client_id.trim() : null
         }
 
         if (!finalClientId) {

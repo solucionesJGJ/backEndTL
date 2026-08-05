@@ -7,10 +7,11 @@ import {
   User,
 } from "../models/index.js";
 import { createGarmentMovement } from "../service/garment-movement.service.js";
+import { isNonEmptyString, isPositiveInteger } from "../utils/validators.js";
 
 export async function getBatchMovements(req: Request, res: Response) {
   try {
-    const { batchId } = req.params;
+    const batchId = req.params.batchId as string;
 
     const batch = await GarmentBatch.findByPk(batchId);
 
@@ -66,7 +67,7 @@ export async function getBatchMovements(req: Request, res: Response) {
 
 export async function createBatchMovement(req: Request, res: Response) {
   try {
-    const { batchId } = req.params;
+    const batchId = req.params.batchId as string;
 
     const {
       garment_id,
@@ -95,7 +96,7 @@ export async function createBatchMovement(req: Request, res: Response) {
       });
     }
 
-    if (!garment_id || !to_status_id || !quantity || !movement_type) {
+    if (!isNonEmptyString(garment_id) || !isNonEmptyString(to_status_id) || quantity === undefined || quantity === null || !isNonEmptyString(movement_type)) {
       return res.status(400).json({
         ok: false,
         message:
@@ -103,13 +104,27 @@ export async function createBatchMovement(req: Request, res: Response) {
       });
     }
 
+    if (from_status_id !== undefined && from_status_id !== null && from_status_id !== "" && !isNonEmptyString(from_status_id)) {
+      return res.status(400).json({
+        ok: false,
+        message: "from_status_id debe ser un identificador valido",
+      });
+    }
+
+    if (!isPositiveInteger(quantity)) {
+      return res.status(400).json({
+        ok: false,
+        message: "quantity debe ser un entero mayor a 0",
+      });
+    }
+
     const movement = await createGarmentMovement({
       batch_id: batchId,
       garment_id,
-      from_status_id: from_status_id || null,
+      from_status_id: isNonEmptyString(from_status_id) ? from_status_id : null,
       to_status_id,
       quantity: Number(quantity),
-      movement_type,
+      movement_type: movement_type.trim(),
       created_by: user.id,
       notes: notes || null,
     });

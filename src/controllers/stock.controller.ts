@@ -6,16 +6,37 @@ import {
     GarmentType,
     MovementStatus,
 } from "../models/index.js";
+import { isNonEmptyString } from "../utils/validators.js";
+
+function assertOptionalQueryId(value: unknown, fieldName: string) {
+    if (value === undefined || value === null || value === "") return null;
+    if (!isNonEmptyString(value)) {
+        return `${fieldName} debe ser un identificador valido`;
+    }
+    return null;
+}
 
 export async function getStock(req: Request, res: Response) {
     try {
         const { client_id, status_id, garment_id } = req.query;
 
+        const validationError =
+            assertOptionalQueryId(client_id, "client_id") ||
+            assertOptionalQueryId(status_id, "status_id") ||
+            assertOptionalQueryId(garment_id, "garment_id");
+
+        if (validationError) {
+            return res.status(400).json({
+                ok: false,
+                message: validationError,
+            });
+        }
+
         const where: any = {};
 
-        if (client_id) where.client_id = client_id;
-        if (status_id) where.status_id = status_id;
-        if (garment_id) where.garment_id = garment_id;
+        if (isNonEmptyString(client_id)) where.client_id = client_id;
+        if (isNonEmptyString(status_id)) where.status_id = status_id;
+        if (isNonEmptyString(garment_id)) where.garment_id = garment_id;
 
         const stock = await GarmentStock.findAll({
             where,

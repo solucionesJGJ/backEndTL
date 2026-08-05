@@ -1,7 +1,7 @@
 import { Op } from "sequelize";
 import type { Request, Response } from "express";
-import { Client, Garment, GarmentType } from "../models/index.js";
-import { isNonNegativeNumber } from "../utils/validators.js";
+import { Garment, GarmentType } from "../models/index.js";
+import { isNonEmptyString, isOptionalNonNegativeNumber, normalizeText } from "../utils/validators.js";
 
 export async function getGarments(req: Request, res: Response) {
   try {
@@ -21,7 +21,7 @@ export async function getGarments(req: Request, res: Response) {
 
 export async function getGarmentById(req: Request, res: Response) {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     const garment = await Garment.findByPk(id, {
       include: [
@@ -64,17 +64,31 @@ export async function createGarment(req: Request, res: Response) {
       return res.status(404).json({ ok: false, message: "Cliente no encontrado" });
     }
  */
-    const garmentType = await GarmentType.findByPk(garment_type_id);
-    if (!garment_type_id || !code?.trim()) {
+    if (!isNonEmptyString(garment_type_id) || !isNonEmptyString(code)) {
       return res.status(400).json({
         ok: false,
         message: "garment_type_id y code son obligatorios",
       });
     }
 
+    const garmentType = await GarmentType.findByPk(garment_type_id);
+    if (!garmentType) {
+      return res.status(404).json({ ok: false, message: "Tipo de prenda no encontrado" });
+    }
+
+    if (!isOptionalNonNegativeNumber(value)) {
+      return res.status(400).json({
+        ok: false,
+        message: "El valor de la prenda no puede ser negativo",
+      })
+    }
+
+    const normalizedCode = code.trim();
+    const normalizedBarcode = isNonEmptyString(barcode) ? barcode.trim() : null;
+
     const existingCode = await Garment.findOne({
       where: {
-        code: code.trim(),
+        code: normalizedCode,
       },
     });
 
@@ -85,9 +99,9 @@ export async function createGarment(req: Request, res: Response) {
       });
     }
 
-    if (barcode?.trim()) {
+    if (normalizedBarcode) {
       const existingBarcode = await Garment.findOne({
-        where: { barcode: barcode.trim() },
+        where: { barcode: normalizedBarcode },
       });
 
       if (existingBarcode) {
@@ -98,20 +112,13 @@ export async function createGarment(req: Request, res: Response) {
       }
     }
 
-    if (!isNonNegativeNumber(value)) {
-      return res.status(400).json({
-        ok: false,
-        message: 'El valor de la prenda no puede ser negativo',
-      })
-    }
-
     const garment = await Garment.create({
       garment_type_id,
-      code: code.trim(),
-      description: description || null,
-      size: size || null,
-      color: color || null,
-      barcode: barcode || null,
+      code: normalizedCode,
+      description: isNonEmptyString(description) ? normalizeText(description) : null,
+      size: isNonEmptyString(size) ? normalizeText(size) : null,
+      color: isNonEmptyString(color) ? normalizeText(color) : null,
+      barcode: normalizedBarcode,
       value: Number(value || 0),
       active: true,
     });
@@ -129,7 +136,7 @@ export async function createGarment(req: Request, res: Response) {
 
 export async function updateGarment(req: Request, res: Response) {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     const {
       garment_type_id,
@@ -148,7 +155,7 @@ export async function updateGarment(req: Request, res: Response) {
       return res.status(404).json({ ok: false, message: "Prenda no encontrada" });
     }
 
-    if (!garment_type_id || !code?.trim()) {
+    if (!isNonEmptyString(garment_type_id) || !isNonEmptyString(code)) {
       return res.status(400).json({
         ok: false,
         message: "garment_type_id y code son obligatorios",
@@ -165,9 +172,19 @@ export async function updateGarment(req: Request, res: Response) {
       return res.status(404).json({ ok: false, message: "Tipo de prenda no encontrado" });
     }
 
+    if (!isOptionalNonNegativeNumber(value)) {
+      return res.status(400).json({
+        ok: false,
+        message: "El valor de la prenda no puede ser negativo",
+      });
+    }
+
+    const normalizedCode = code.trim();
+    const normalizedBarcode = isNonEmptyString(barcode) ? barcode.trim() : null;
+
     const existingCode = await Garment.findOne({
       where: {
-        code: code.trim(),
+        code: normalizedCode,
         id: { [Op.ne]: id },
       },
     });
@@ -179,10 +196,10 @@ export async function updateGarment(req: Request, res: Response) {
       });
     }
 
-    if (barcode?.trim()) {
+    if (normalizedBarcode) {
       const existingBarcode = await Garment.findOne({
         where: {
-          barcode: barcode.trim(),
+          barcode: normalizedBarcode,
           id: { [Op.ne]: id },
         },
       });
@@ -197,11 +214,11 @@ export async function updateGarment(req: Request, res: Response) {
 
     await garment.update({
       garment_type_id,
-      code: code.trim(),
-      description: description || null,
-      size: size || null,
-      color: color || null,
-      barcode: barcode || null,
+      code: normalizedCode,
+      description: isNonEmptyString(description) ? normalizeText(description) : null,
+      size: isNonEmptyString(size) ? normalizeText(size) : null,
+      color: isNonEmptyString(color) ? normalizeText(color) : null,
+      barcode: normalizedBarcode,
       active: typeof active === "boolean" ? active : garment.active,
       value: Number(value || 0),
     });
@@ -219,7 +236,7 @@ export async function updateGarment(req: Request, res: Response) {
 
 export async function deactivateGarment(req: Request, res: Response) {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     const garment = await Garment.findByPk(id);
 

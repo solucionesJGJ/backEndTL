@@ -2,6 +2,7 @@ import {
   sequelize,
   Garment,
   GarmentBatch,
+  GarmentBatchItem,
   GarmentMovement,
   GarmentStock,
   MovementStatus,
@@ -50,6 +51,19 @@ export async function createGarmentMovement(input: CreateMovementInput) {
 
     if (!toStatus) {
       throw new Error("Estado destino no encontrado");
+    }
+
+    const batchItem = await GarmentBatchItem.findOne({
+      where: {
+        batch_id: input.batch_id,
+        garment_id: input.garment_id,
+      },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+
+    if (!batchItem) {
+      throw new Error("La prenda no existe en el lote");
     }
 
     if (input.from_status_id) {
@@ -119,6 +133,54 @@ export async function createGarmentMovement(input: CreateMovementInput) {
       },
       { transaction }
     );
+
+    const quantitySent = Number(batchItem.quantity_sent || 0);
+    const quantityReceived = Number(batchItem.quantity_received || 0);
+    const quantityProcessed = Number(batchItem.quantity_processed || 0);
+    const quantityReprocessed = Number(batchItem.quantity_reprocessed || 0);
+    const quantityReturned = Number(batchItem.quantity_returned || 0);
+    const quantity = Number(input.quantity);
+
+    const itemUpdate: Partial<GarmentBatchItem> = {};
+
+    if (toStatus.code === "RECEPCIONADO") {
+      const nextReceived = quantityReceived + quantity;
+
+      if (nextReceived > quantitySent) {
+        throw new Error("La cantidad recepcionada no puede superar la cantidad enviada");
+      }
+
+      itemUpdate.quantity_received = nextReceived;
+    }
+
+    if (toStatus.code === "EN_PROCESO" || toStatus.code === "PREPARADO_DESPACHO") {
+      const nextProcessed = quantityProcessed + quantity;
+
+      // TODO: confirmar si el negocio permite procesar sobrantes no recepcionados.
+      if (nextProcessed > quantityReceived + quantityReprocessed) {
+        throw new Error("La cantidad procesada no puede superar la cantidad disponible");
+      }
+
+      itemUpdate.quantity_processed = nextProcessed;
+    }
+
+    if (toStatus.code === "REPROCESO") {
+      itemUpdate.quantity_reprocessed = quantityReprocessed + quantity;
+    }
+
+    if (toStatus.code === "RETORNADO_CLIENTE" || toStatus.code === "CERRADO") {
+      const nextReturned = quantityReturned + quantity;
+
+      if (nextReturned > quantitySent) {
+        throw new Error("La cantidad retornada no puede superar la cantidad enviada");
+      }
+
+      itemUpdate.quantity_returned = nextReturned;
+    }
+
+    if (Object.keys(itemUpdate).length > 0) {
+      await batchItem.update(itemUpdate, { transaction });
+    }
 
     return movement;
   });

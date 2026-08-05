@@ -6,6 +6,7 @@ import {
     GarmentBatchItem,
     MovementStatus,
 } from "../models/index.js";
+import { isNonEmptyString } from "../utils/validators.js";
 
 export async function getPlantDashboard(req: Request, res: Response) {
     try {
@@ -76,7 +77,15 @@ export async function getClientDashboard(req: Request, res: Response) {
         const user = req.user;
         const roleName = user?.role?.name;
 
-        let clientId = req.query.client_id as string | undefined;
+        const queryClientId = req.query.client_id;
+        let clientId = isNonEmptyString(queryClientId) ? queryClientId : undefined;
+
+        if (queryClientId !== undefined && queryClientId !== null && queryClientId !== "" && !isNonEmptyString(queryClientId)) {
+            return res.status(400).json({
+                ok: false,
+                message: "client_id debe ser un identificador valido",
+            });
+        }
 
         if (roleName === "client_operator") {
             clientId = user?.client_id || undefined;

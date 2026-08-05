@@ -63,14 +63,38 @@ export function isRequired(value: unknown): boolean {
   return true
 }
 
+export function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0
+}
+
 export function isPositiveNumber(value: unknown): boolean {
+  if (value === null || value === undefined || value === '') return false
   const numberValue = Number(value)
-  return !Number.isNaN(numberValue) && numberValue > 0
+  return Number.isFinite(numberValue) && numberValue > 0
 }
 
 export function isNonNegativeNumber(value: unknown): boolean {
+  if (value === null || value === undefined || value === '') return false
   const numberValue = Number(value)
-  return !Number.isNaN(numberValue) && numberValue >= 0
+  return Number.isFinite(numberValue) && numberValue >= 0
+}
+
+export function isOptionalNonNegativeNumber(value: unknown): boolean {
+  return value === null || value === undefined || value === '' || isNonNegativeNumber(value)
+}
+
+export function isPositiveInteger(value: unknown): boolean {
+  if (!isPositiveNumber(value)) return false
+  return Number.isInteger(Number(value))
+}
+
+export function isNonNegativeInteger(value: unknown): boolean {
+  if (!isNonNegativeNumber(value)) return false
+  return Number.isInteger(Number(value))
+}
+
+export function isOptionalNonNegativeInteger(value: unknown): boolean {
+  return value === null || value === undefined || value === '' || isNonNegativeInteger(value)
 }
 
 export function normalizeText(value: string): string {

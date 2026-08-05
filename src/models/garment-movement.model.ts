@@ -15,7 +15,7 @@ export class GarmentMovement extends Model<
     declare batch_id: string;
     declare garment_id: string;
     declare from_status_id: string | null;
-    declare to_status_id: string;
+    declare to_status_id: string | null;
     declare quantity: number;
     declare movement_type: string;
     declare created_by: string;
@@ -48,7 +48,7 @@ export function initGarmentMovementModel(
             },
             to_status_id: {
                 type: DataTypes.UUID,
-                allowNull: false,
+                allowNull: true,
             },
             quantity: {
                 type: DataTypes.INTEGER,

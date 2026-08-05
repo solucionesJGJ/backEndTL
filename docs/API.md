@@ -94,8 +94,10 @@ Crear/actualizar:
 Validaciones relevantes:
 
 - `name`, `rut`, `contact_name`, `contact_email` y `contact_phone` son obligatorios al crear.
+- Los mismos campos son obligatorios al actualizar.
 - RUT, email y telefono chileno son validados.
 - `rut` debe ser unico.
+- El RUT se normaliza antes de guardar y comparar duplicados.
 
 ## Usuarios
 
@@ -122,6 +124,8 @@ Notas:
 
 - `password` debe tener al menos 8 caracteres.
 - `email` debe ser unico.
+- `name`, `email`, `password` y `role_id` deben ser strings no vacios al crear.
+- `name`, `email` y `role_id` deben ser strings no vacios al actualizar.
 - Los usuarios con rol `client_operator` deben tener `client_id`.
 - Los usuarios con rol `admin` o `warehouse_operator` quedan sin `client_id`.
 
@@ -179,9 +183,10 @@ Payload:
 Validaciones:
 
 - `garment_type_id` y `code` son obligatorios.
+- `garment_type_id` debe existir.
 - `code` es unico.
 - `barcode` es unico si se informa.
-- `value` no puede ser negativo.
+- `value` es opcional; si se informa, debe ser numerico y no puede ser negativo.
 
 ## Procesos de prenda
 
@@ -202,6 +207,12 @@ Payload:
   "active": true
 }
 ```
+
+Validaciones:
+
+- `name` y `code` son obligatorios.
+- `percentage` es opcional; si se informa, debe ser numerico y no puede ser negativo.
+- `code` se normaliza en mayusculas con guion bajo.
 
 ## Estados de movimiento
 
@@ -315,9 +326,11 @@ Payload de actualizacion:
 Reglas:
 
 - Solo se pueden modificar items si el lote esta en `BORRADOR_CLIENTE`.
+- Una vez que el `client_operator` despacha el lote y este pasa a `PENDIENTE_RECEPCION`, ya no puede agregar, editar ni eliminar items.
 - `client_operator` solo modifica lotes de su cliente.
 - No se puede repetir la misma `garment_id` dentro del mismo lote.
-- `quantity_sent` debe ser mayor que 0 al crear.
+- `quantity_sent` debe ser un entero mayor que 0 al crear.
+- Las cantidades recibidas, procesadas, reprocesadas y retornadas deben ser enteros mayores o iguales a 0.
 
 ## Movimientos de lote
 
@@ -346,6 +359,12 @@ Campos obligatorios:
 - `quantity`
 - `movement_type`
 
+Validaciones:
+
+- `quantity` debe ser un entero mayor que 0.
+- `movement_type` debe ser un string no vacio.
+- `from_status_id`, si se informa, debe ser un identificador valido.
+
 El servicio de movimientos actualiza el stock agregado por cliente, prenda y estado.
 
 ## Stock
@@ -359,6 +378,8 @@ Filtros opcionales:
 ```http
 GET /api/stock?client_id=<uuid-client>&status_id=<uuid-status>&garment_id=<uuid-garment>
 ```
+
+Si se informa un filtro, debe ser un identificador en formato string; arrays u otros tipos responden `400`.
 
 ## Dashboard
 
@@ -382,6 +403,8 @@ GET /api/dashboard/client?client_id=<uuid-client>
 
 Para `client_operator`, el `client_id` se toma desde el usuario autenticado.
 
+Para `admin`, `client_id` es obligatorio y debe ser un identificador en formato string.
+
 Devuelve:
 
 - `client`
@@ -404,3 +427,13 @@ Devuelve:
 | `404` | Recurso no encontrado. |
 | `409` | Conflicto por duplicidad. |
 | `500` | Error interno. |
+
+## Tests Relacionados
+
+La suite automatizada se ejecuta con:
+
+```bash
+npm test
+```
+
+Los tests actuales cubren validadores compartidos y el flujo de `POST /auth/bootstrap-admin`, incluyendo validaciones de payload, bloqueo cuando ya existe un usuario y respuesta exitosa con token.
