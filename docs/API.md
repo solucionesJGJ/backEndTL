@@ -87,6 +87,7 @@ Crear/actualizar:
   "contact_name": "Maria Perez",
   "contact_email": "maria@example.com",
   "contact_phone": "+56912345678",
+  "code_prefix": "CC",
   "active": true
 }
 ```
@@ -98,6 +99,7 @@ Validaciones relevantes:
 - RUT, email y telefono chileno son validados.
 - `rut` debe ser unico.
 - El RUT se normaliza antes de guardar y comparar duplicados.
+- `code_prefix` se usa para generar codigos de prenda del cliente y debe ser unico cuando se informa.
 
 ## Usuarios
 
@@ -135,27 +137,6 @@ Notas:
 | --- | --- | --- | --- |
 | `GET` | `/roles` | `admin` | Lista roles. |
 
-## Tipos de prenda
-
-| Metodo | Ruta | Roles | Descripcion |
-| --- | --- | --- | --- |
-| `GET` | `/garment-types` | `admin`, `warehouse_operator`, `client_operator` | Lista tipos. |
-| `GET` | `/garment-types/:id` | `admin`, `warehouse_operator`, `client_operator` | Obtiene tipo. |
-| `POST` | `/garment-types` | `admin` | Crea tipo. |
-| `PUT` | `/garment-types/:id` | `admin` | Actualiza tipo. |
-| `DELETE` | `/garment-types/:id` | `admin` | Elimina tipo. |
-| `PATCH` | `/garment-types/:id/deactivate` | `admin` | Desactiva tipo. |
-
-Payload:
-
-```json
-{
-  "name": "Sabana",
-  "description": "Ropa de cama",
-  "active": true
-}
-```
-
 ## Prendas
 
 | Metodo | Ruta | Roles | Descripcion |
@@ -170,7 +151,7 @@ Payload:
 
 ```json
 {
-  "garment_type_id": "<uuid-garment-type>",
+  "client_id": "<uuid-client>",
   "code": "SAB-001",
   "description": "Sabana blanca",
   "size": "1 plaza",
@@ -182,37 +163,13 @@ Payload:
 
 Validaciones:
 
-- `garment_type_id` y `code` son obligatorios.
-- `garment_type_id` debe existir.
-- `code` es unico.
+- `client_id` y `code` son obligatorios.
+- `client_id` debe existir.
+- El cliente debe tener `code_prefix` configurado.
+- El codigo final se genera como `<code_prefix>-<code>` normalizado en mayusculas.
+- `code` final es unico.
 - `barcode` es unico si se informa.
 - `value` es opcional; si se informa, debe ser numerico y no puede ser negativo.
-
-## Procesos de prenda
-
-| Metodo | Ruta | Roles | Descripcion |
-| --- | --- | --- | --- |
-| `GET` | `/garment-processes` | `admin`, `warehouse_operator`, `client_operator` | Lista procesos. |
-| `POST` | `/garment-processes` | `admin` | Crea proceso. |
-| `PUT` | `/garment-processes/:id` | `admin` | Actualiza proceso. |
-| `PATCH` | `/garment-processes/:id/deactivate` | `admin` | Desactiva proceso. |
-
-Payload:
-
-```json
-{
-  "name": "Manchado",
-  "code": "MANCHADO",
-  "percentage": 30,
-  "active": true
-}
-```
-
-Validaciones:
-
-- `name` y `code` son obligatorios.
-- `percentage` es opcional; si se informa, debe ser numerico y no puede ser negativo.
-- `code` se normaliza en mayusculas con guion bajo.
 
 ## Estados de movimiento
 
@@ -302,7 +259,6 @@ Payload de creacion:
 ```json
 {
   "garment_id": "<uuid-garment>",
-  "garment_process_id": "<uuid-process>",
   "quantity_sent": 10,
   "quantity_received": 0,
   "notes": "Sin observaciones"
@@ -313,7 +269,6 @@ Payload de actualizacion:
 
 ```json
 {
-  "garment_process_id": "<uuid-process>",
   "quantity_sent": 10,
   "quantity_received": 9,
   "quantity_processed": 9,
@@ -328,9 +283,11 @@ Reglas:
 - Solo se pueden modificar items si el lote esta en `BORRADOR_CLIENTE`.
 - Una vez que el `client_operator` despacha el lote y este pasa a `PENDIENTE_RECEPCION`, ya no puede agregar, editar ni eliminar items.
 - `client_operator` solo modifica lotes de su cliente.
+- La prenda debe pertenecer al mismo cliente del lote.
 - No se puede repetir la misma `garment_id` dentro del mismo lote.
 - `quantity_sent` debe ser un entero mayor que 0 al crear.
 - Las cantidades recibidas, procesadas, reprocesadas y retornadas deben ser enteros mayores o iguales a 0.
+- Al crear el item, `unit_value` se copia desde `garments.value` y queda congelado para trazabilidad historica del lote.
 
 ## Movimientos de lote
 
@@ -414,6 +371,164 @@ Devuelve:
 - `estimatedTotal`
 - `statusSummary`
 - `batches`
+
+## Vehiculos
+
+| Metodo | Ruta | Roles | Descripcion |
+| --- | --- | --- | --- |
+| `GET` | `/vehicles` | `admin` | Lista todos los vehiculos. |
+| `GET` | `/vehicles/active` | `admin`, `transportista` | Lista vehiculos activos disponibles para jornada. |
+| `POST` | `/vehicles` | `admin` | Crea vehiculo. |
+| `PUT` | `/vehicles/:id` | `admin` | Actualiza vehiculo. |
+| `PATCH` | `/vehicles/:id/deactivate` | `admin` | Desactiva vehiculo. |
+
+Crear/actualizar:
+
+```json
+{
+  "plate": "ABCD12",
+  "brand": "Mercedes-Benz",
+  "model": "Sprinter",
+  "year": 2024,
+  "active": true
+}
+```
+
+Validaciones:
+
+- `plate` es obligatorio, se normaliza en mayusculas sin espacios y debe ser unico.
+- `year` es opcional; si se informa, debe ser entero y mayor o igual a `1900`.
+- `brand` y `model` son opcionales.
+- `active` solo se considera en actualizacion cuando viene como booleano.
+
+## Jornadas de transportista
+
+| Metodo | Ruta | Roles | Descripcion |
+| --- | --- | --- | --- |
+| `GET` | `/driver-shifts/checklist` | `admin`, `transportista` | Obtiene definicion del checklist requerido al iniciar jornada. |
+| `GET` | `/driver-shifts/current` | `admin`, `transportista` | Obtiene la jornada activa del usuario autenticado. |
+| `GET` | `/driver-shifts/history` | `admin`, `transportista` | Lista jornadas del usuario autenticado. |
+| `POST` | `/driver-shifts/start` | `admin`, `transportista` | Inicia jornada con vehiculo, kilometraje y checklist. |
+| `PATCH` | `/driver-shifts/finish` | `admin`, `transportista` | Finaliza la jornada activa del usuario autenticado. |
+| `GET` | `/driver-shifts/admin/history` | `admin` | Lista jornadas de todos los transportistas, con filtros opcionales. |
+| `GET` | `/driver-shifts/:id/ticket` | `admin`, `transportista` | Descarga el comprobante PDF de la jornada. |
+
+Iniciar jornada:
+
+```json
+{
+  "vehicle_id": "<uuid-vehicle>",
+  "initial_mileage": 1000,
+  "observations": "Inicio de turno sin observaciones",
+  "checklist": [
+    {
+      "code": "TIRES",
+      "checked": true,
+      "observations": null
+    },
+    {
+      "code": "LIGHTS",
+      "checked": true,
+      "observations": null
+    },
+    {
+      "code": "BRAKES",
+      "checked": true,
+      "observations": null
+    },
+    {
+      "code": "LEVELS",
+      "checked": true,
+      "observations": null
+    },
+    {
+      "code": "VEHICLE_DOCUMENTS",
+      "checked": true,
+      "observations": null
+    },
+    {
+      "code": "CLEANING",
+      "checked": true,
+      "observations": null
+    },
+    {
+      "code": "VISIBLE_DAMAGE",
+      "checked": true,
+      "observations": null
+    },
+    {
+      "code": "LICENSE",
+      "checked": true,
+      "observations": null
+    },
+    {
+      "code": "FITNESS",
+      "checked": true,
+      "observations": null
+    },
+    {
+      "code": "SAFETY_EQUIPMENT",
+      "checked": true,
+      "observations": null
+    },
+    {
+      "code": "DRIVER_DOCUMENTS",
+      "checked": true,
+      "observations": null
+    }
+  ]
+}
+```
+
+Finalizar jornada:
+
+```json
+{
+  "final_mileage": 1050,
+  "observations": "Turno finalizado correctamente"
+}
+```
+
+Filtros de historial administrador:
+
+```http
+GET /api/driver-shifts/admin/history?user_id=<uuid-user>&vehicle_id=<uuid-vehicle>&status=completed
+```
+
+Reglas:
+
+- `vehicle_id` es obligatorio y debe corresponder a un vehiculo activo.
+- `initial_mileage` y `final_mileage` deben ser enteros mayores o iguales a `0`.
+- Solo puede existir una jornada activa por transportista.
+- El checklist debe incluir todos los codigos definidos por `/driver-shifts/checklist`.
+- Los items requeridos del checklist deben venir con `checked: true`.
+- `final_mileage` no puede ser menor que `initial_mileage`.
+- El comprobante PDF se genera al iniciar la jornada; si falta al descargar, el endpoint intenta regenerarlo.
+- Un `transportista` solo puede descargar sus propios comprobantes; `admin` puede descargar cualquiera.
+
+## Postman
+
+La collection dinamica esta en:
+
+```text
+docs/postman/Terminal_Logistico.postman_collection.json
+```
+
+Variables principales:
+
+- `serverUrl`: URL raiz, por defecto `http://localhost:3000`.
+- `baseUrl`: URL API, por defecto `http://localhost:3000/api`.
+- `token`: JWT guardado automaticamente desde `Auth / Login`.
+- `clientId`, `roleId`, `garmentId`, `batchId`, `itemId`, `movementId`, `vehicleId`: identificadores que se van poblando desde respuestas.
+- `statusDraftId`, `statusPendingId`, `statusReceivedId`, `statusProcessId`, `statusReturnedId`: estados cargados desde `/movement-statuses`.
+
+Flujo sugerido:
+
+1. Ejecutar `Auth / Bootstrap Admin` si la base no tiene usuarios.
+2. Ejecutar `Auth / Login` para guardar `token`.
+3. Ejecutar `Catalogos Base / List Roles` y `Catalogos Base / List Movement Statuses`.
+4. Crear o listar clientes, usuarios, prendas, vehiculos y lotes para poblar variables.
+5. Ejecutar los requests de flujo operativo segun el estado real del lote o jornada.
 
 ## Codigos HTTP frecuentes
 

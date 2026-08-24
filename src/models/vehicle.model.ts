@@ -7,44 +7,73 @@ import {
     type InferCreationAttributes,
 } from "sequelize";
 
-export class GarmentType extends Model<
-    InferAttributes<GarmentType>,
-    InferCreationAttributes<GarmentType>
+
+export class Vehicle extends Model<
+    InferAttributes<Vehicle>,
+    InferCreationAttributes<Vehicle>
 > {
     declare id: CreationOptional<string>;
-    declare name: string;
-    declare description: string | null;
+
+    declare plate: string;
+
+    declare brand: string | null;
+
+    declare model: string | null;
+
+    declare year: number | null;
+
     declare active: CreationOptional<boolean>;
+
     declare createdAt: CreationOptional<Date>;
+
     declare updatedAt: CreationOptional<Date>;
 }
 
-export function initGarmentTypeModel(sequelize: Sequelize): typeof GarmentType {
-    GarmentType.init(
+
+export function initVehicleModel(
+    sequelize: Sequelize,
+): typeof Vehicle {
+
+    Vehicle.init(
         {
             id: {
                 type: DataTypes.UUID,
                 defaultValue: DataTypes.UUIDV4,
                 primaryKey: true,
             },
-            name: {
-                type: DataTypes.STRING(100),
+
+            plate: {
+                type: DataTypes.STRING(20),
                 allowNull: false,
                 unique: true,
             },
-            description: {
-                type: DataTypes.TEXT,
+
+            brand: {
+                type: DataTypes.STRING(100),
                 allowNull: true,
             },
+
+            model: {
+                type: DataTypes.STRING(100),
+                allowNull: true,
+            },
+
+            year: {
+                type: DataTypes.INTEGER,
+                allowNull: true,
+            },
+
             active: {
                 type: DataTypes.BOOLEAN,
                 allowNull: false,
                 defaultValue: true,
             },
+
             createdAt: {
                 type: DataTypes.DATE,
                 field: "created_at",
             },
+
             updatedAt: {
                 type: DataTypes.DATE,
                 field: "updated_at",
@@ -52,11 +81,15 @@ export function initGarmentTypeModel(sequelize: Sequelize): typeof GarmentType {
         },
         {
             sequelize,
-            tableName: "garment_types",
+
+            tableName: "vehicles",
+
             timestamps: true,
+
             underscored: true,
         }
     );
 
-    return GarmentType;
+
+    return Vehicle;
 }

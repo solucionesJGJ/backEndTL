@@ -14,24 +14,29 @@ export class GarmentBatchItem extends Model<
     declare id: CreationOptional<string>;
     declare batch_id: string;
     declare garment_id: string;
+
     declare quantity_sent: CreationOptional<number>;
     declare quantity_received: CreationOptional<number>;
     declare quantity_processed: CreationOptional<number>;
     declare quantity_reprocessed: CreationOptional<number>;
     declare quantity_returned: CreationOptional<number>;
+
     declare notes: string | null;
+
+    // Precio histórico aplicado al momento de agregar la prenda al lote
+    declare unit_value: CreationOptional<number>;
+
+    // Total histórico del ítem
+    declare calculated_total: CreationOptional<number>;
+
     declare createdAt: CreationOptional<Date>;
     declare updatedAt: CreationOptional<Date>;
-    declare garment_process_id: string | null;
-    declare unit_value: CreationOptional<number>;
-    declare process_percentage: CreationOptional<number>;
-    declare calculated_unit_value: CreationOptional<number>;
-    declare calculated_total: CreationOptional<number>;
 }
 
 export function initGarmentBatchItemModel(
     sequelize: Sequelize
 ): typeof GarmentBatchItem {
+
     GarmentBatchItem.init(
         {
             id: {
@@ -39,79 +44,77 @@ export function initGarmentBatchItemModel(
                 defaultValue: DataTypes.UUIDV4,
                 primaryKey: true,
             },
+
             batch_id: {
                 type: DataTypes.UUID,
                 allowNull: false,
             },
+
             garment_id: {
                 type: DataTypes.UUID,
                 allowNull: false,
             },
+
             quantity_sent: {
                 type: DataTypes.INTEGER,
                 allowNull: false,
                 defaultValue: 0,
                 validate: { min: 0 },
             },
+
             quantity_received: {
                 type: DataTypes.INTEGER,
                 allowNull: false,
                 defaultValue: 0,
                 validate: { min: 0 },
             },
+
             quantity_processed: {
                 type: DataTypes.INTEGER,
                 allowNull: false,
                 defaultValue: 0,
                 validate: { min: 0 },
             },
+
             quantity_reprocessed: {
                 type: DataTypes.INTEGER,
                 allowNull: false,
                 defaultValue: 0,
                 validate: { min: 0 },
             },
+
             quantity_returned: {
                 type: DataTypes.INTEGER,
                 allowNull: false,
                 defaultValue: 0,
                 validate: { min: 0 },
             },
+
             notes: {
                 type: DataTypes.TEXT,
                 allowNull: true,
             },
-            createdAt: {
-                type: DataTypes.DATE,
-                field: "created_at",
-            },
-            updatedAt: {
-                type: DataTypes.DATE,
-                field: "updated_at",
-            },
-            garment_process_id: {
-                type: DataTypes.UUID,
-                allowNull: true,
-            },
+
             unit_value: {
                 type: DataTypes.DECIMAL(12, 2),
                 allowNull: false,
                 defaultValue: 0,
             },
-            process_percentage: {
-                type: DataTypes.DECIMAL(5, 2),
-                allowNull: false,
-                defaultValue: 0,
-            },
-            calculated_unit_value: {
-                type: DataTypes.DECIMAL(12, 2),
-                allowNull: false,
-                defaultValue: 0,
-            },
+
             calculated_total: {
                 type: DataTypes.DECIMAL(12, 2),
                 allowNull: false,
                 defaultValue: 0,
+            },
+
+            createdAt: {
+                type: DataTypes.DATE,
+                field: "created_at",
+            },
+
+            updatedAt: {
+                type: DataTypes.DATE,
+                field: "updated_at",
             },
         },
         {
@@ -119,6 +122,7 @@ export function initGarmentBatchItemModel(
             tableName: "garment_batch_items",
             timestamps: true,
             underscored: true,
+
             indexes: [
                 {
                     unique: true,

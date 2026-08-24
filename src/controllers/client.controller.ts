@@ -19,6 +19,7 @@ export async function createClient(req: Request, res: Response) {
             contact_name,
             contact_email,
             contact_phone,
+            code_prefix,
         } = req.body;
 
         if (!isNonEmptyString(name) || !isNonEmptyString(rut) || !isNonEmptyString(contact_name) || !isNonEmptyString(contact_email) || !isNonEmptyString(contact_phone)) {
@@ -63,6 +64,17 @@ export async function createClient(req: Request, res: Response) {
             });
         }
 
+        const existingCodePrefix = await Client.findOne({
+            where: { code_prefix: code_prefix },
+        });
+
+        if (existingCodePrefix) {
+            return res.status(409).json({
+                ok: false,
+                message: "Ya existe un cliente con ese prefijo de código",
+            });
+        }
+
         const client = await Client.create({
             name: normalizeText(name),
             rut: normalizedRut,
@@ -70,6 +82,7 @@ export async function createClient(req: Request, res: Response) {
             contact_name: normalizeText(contact_name),
             contact_email: normalizedEmail,
             contact_phone: contact_phone.trim(),
+            code_prefix: code_prefix ? code_prefix.trim() : null,
             active: true,
         });
 
@@ -147,6 +160,7 @@ export async function updateClient(req: Request, res: Response) {
             contact_email,
             contact_phone,
             active,
+            code_prefix,
         } = req.body;
 
         const client = await Client.findByPk(id);
@@ -204,6 +218,17 @@ export async function updateClient(req: Request, res: Response) {
             });
         }
 
+        const existingCodePrefix = await Client.findOne({
+            where: { code_prefix: code_prefix },
+        });
+
+        if (existingCodePrefix) {
+            return res.status(409).json({
+                ok: false,
+                message: "Ya existe un cliente con ese prefijo de código",
+            });
+        }
+
         await client.update({
             name: normalizeText(name),
             rut: normalizedRut,
@@ -212,6 +237,7 @@ export async function updateClient(req: Request, res: Response) {
             contact_email: contact_email.trim().toLowerCase(),
             contact_phone: contact_phone.trim(),
             active: typeof active === "boolean" ? active : client.active,
+            code_prefix: code_prefix ? code_prefix.trim() : null,
         });
 
         return res.json({

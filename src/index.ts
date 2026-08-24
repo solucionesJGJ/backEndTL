@@ -10,7 +10,7 @@ app.use(cors());
 app.use('/api', apiRoutes);
 app.use(bodyParser.urlencoded({ extended: true }));
 app.get('/', (req: Request, res: Response) => {
-    res.send('Hello, World!');
+    res.send('Bienvenido a la api de "TERMINAL LOGISTICO"');
 });
 
 app.listen(PORT, () => {

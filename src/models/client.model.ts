@@ -18,6 +18,8 @@ export class Client extends Model<
     declare contact_name: string | null;
     declare contact_email: string | null;
     declare contact_phone: string | null;
+    // Prefijo usado para los códigos de prendas del cliente
+    declare code_prefix: string | null;
     declare active: CreationOptional<boolean>;
     declare createdAt: CreationOptional<Date>;
     declare updatedAt: CreationOptional<Date>;
@@ -54,6 +56,10 @@ export function initClientModel(sequelize: Sequelize): typeof Client {
             },
             contact_phone: {
                 type: DataTypes.STRING(50),
+                allowNull: true,
+            },
+            code_prefix: {
+                type: DataTypes.STRING(10),
                 allowNull: true,
             },
             active: {

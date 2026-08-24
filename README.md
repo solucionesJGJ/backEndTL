@@ -48,9 +48,8 @@ npm run db:seed
 
 El seed crea:
 
-- Roles: `admin`, `client_operator`, `warehouse_operator`.
+- Roles: `admin`, `client_operator`, `warehouse_operator`, `transportista`.
 - Estados de movimiento: desde `BORRADOR_CLIENTE` hasta `CERRADO`.
-- Procesos de prenda: `SUCIO_NORMAL`, `MANCHADO`, `REPROCESO`.
 
 ## Ejecucion
 
@@ -142,6 +141,7 @@ Respuesta exitosa:
 - `admin`: administra clientes, usuarios, catalogos y puede operar todos los lotes.
 - `client_operator`: crea y despacha lotes de su cliente; puede cerrar lotes retornados.
 - `warehouse_operator`: opera recepcion, evaluacion, movimientos, stock y transiciones internas.
+- `transportista`: consulta vehiculos activos e inicia/finaliza jornadas con checklist y comprobante PDF.
 
 ## Flujo principal de lotes
 
@@ -171,30 +171,46 @@ Transiciones generales permitidas:
 ## Entidades principales
 
 - `Client`: cliente con RUT, contacto, correo, telefono y estado activo.
+- `code_prefix`: prefijo unico del cliente usado para generar codigos de prenda.
 - `User`: usuario con rol y cliente asociado opcional.
 - `Role`: rol de autorizacion.
-- `GarmentType`: tipo de prenda.
-- `Garment`: prenda catalogada por codigo, tipo, talla, color, barcode y valor.
-- `GarmentProcess`: proceso aplicado a una prenda y porcentaje de recargo.
+- `Garment`: prenda catalogada por cliente, codigo compuesto por prefijo, talla, color, barcode y valor.
+- `GarmentPriceHistory`: historial de cambios de valor de una prenda.
 - `MovementStatus`: estado operativo del lote/inventario.
 - `GarmentBatch`: lote de prendas por cliente.
 - `GarmentBatchItem`: prenda dentro de un lote, cantidades y calculos monetarios.
 - `GarmentMovement`: movimiento de inventario por prenda, lote y estado.
 - `GarmentStock`: stock agregado por cliente, prenda y estado.
+- `Vehicle`: vehiculo usado por transportistas.
+- `DriverShift`: jornada de transportista con kilometraje, checklist y comprobante PDF.
 
 ## Calculo de valores de items
 
 Al agregar o actualizar una prenda en un lote:
 
-- `unit_value` se toma desde `garments.value`.
-- `process_percentage` se toma desde `garment_processes.percentage`.
-- `calculated_unit_value = unit_value + (unit_value * process_percentage / 100)`.
-- `calculated_total = calculated_unit_value * (quantity_received || quantity_sent)`.
-- Si el proceso tiene codigo `REPROCESO`, al crear el item el valor unitario calculado queda en `0`.
+- `unit_value` se copia desde `garments.value` al crear el item.
+- Ese precio queda congelado en el lote y no cambia si luego se modifica el valor de la prenda.
+- `calculated_total = unit_value * quantity_sent`.
+- Al actualizar cantidades, el total se recalcula usando el `unit_value` historico del item.
+
+## Modulo transportista
+
+- Los administradores gestionan vehiculos con `/api/vehicles`.
+- Transportistas y administradores consultan vehiculos activos con `/api/vehicles/active`.
+- La jornada se inicia con `/api/driver-shifts/start`, indicando vehiculo, kilometraje inicial y checklist completo.
+- Solo puede existir una jornada activa por transportista.
+- La jornada se finaliza con `/api/driver-shifts/finish`; el kilometraje final no puede ser menor al inicial.
+- Cada jornada genera o regenera un comprobante PDF descargable desde `/api/driver-shifts/:id/ticket`.
 
 ## Documentacion de API
 
 La referencia de endpoints esta en [docs/API.md](docs/API.md).
+
+## Postman
+
+La collection dinamica esta en [docs/postman/Terminal_Logistico.postman_collection.json](docs/postman/Terminal_Logistico.postman_collection.json).
+
+Importala en Postman y ajusta la variable `baseUrl` si tu API no corre en `http://localhost:3000/api`. La collection incluye 48 requests agrupados por Auth, catalogos base, clientes, usuarios, prendas, lotes, stock/dashboard, vehiculos y jornadas de transportista. Ejecuta `Auth / Login` para guardar `token`; luego ejecuta los listados base para poblar variables como `roleId`, `clientId`, `garmentId`, `batchId`, `itemId`, `statusPendingId` y `vehicleId`.
 
 ## Scripts disponibles
 
