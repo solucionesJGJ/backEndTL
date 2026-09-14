@@ -1,95 +1,89 @@
 import {
-    DataTypes,
-    Model,
-    type Sequelize,
-    type CreationOptional,
-    type InferAttributes,
-    type InferCreationAttributes,
+  DataTypes,
+  Model,
+  type CreationOptional,
+  type InferAttributes,
+  type InferCreationAttributes,
+  type Sequelize,
 } from "sequelize";
 
-
 export class Vehicle extends Model<
-    InferAttributes<Vehicle>,
-    InferCreationAttributes<Vehicle>
+  InferAttributes<Vehicle>,
+  InferCreationAttributes<Vehicle>
 > {
-    declare id: CreationOptional<string>;
+  declare id: CreationOptional<string>;
 
-    declare plate: string;
+  declare plate: string;
 
-    declare brand: string | null;
+  declare brand: string | null;
 
-    declare model: string | null;
+  declare model: string | null;
 
-    declare year: number | null;
+  declare year: number | null;
 
-    declare active: CreationOptional<boolean>;
+  declare active: CreationOptional<boolean>;
 
-    declare createdAt: CreationOptional<Date>;
+  declare createdAt: CreationOptional<Date>;
 
-    declare updatedAt: CreationOptional<Date>;
+  declare updatedAt: CreationOptional<Date>;
 }
 
+export function initVehicleModel(sequelize: Sequelize): typeof Vehicle {
+  Vehicle.init(
+    {
+      id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true,
+      },
 
-export function initVehicleModel(
-    sequelize: Sequelize,
-): typeof Vehicle {
+      plate: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+        unique: true,
+      },
 
-    Vehicle.init(
-        {
-            id: {
-                type: DataTypes.UUID,
-                defaultValue: DataTypes.UUIDV4,
-                primaryKey: true,
-            },
+      brand: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
 
-            plate: {
-                type: DataTypes.STRING(20),
-                allowNull: false,
-                unique: true,
-            },
+      model: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+      },
 
-            brand: {
-                type: DataTypes.STRING(100),
-                allowNull: true,
-            },
+      year: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
 
-            model: {
-                type: DataTypes.STRING(100),
-                allowNull: true,
-            },
+      active: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+      },
 
-            year: {
-                type: DataTypes.INTEGER,
-                allowNull: true,
-            },
+      createdAt: {
+        type: DataTypes.DATE,
+        field: "created_at",
+      },
 
-            active: {
-                type: DataTypes.BOOLEAN,
-                allowNull: false,
-                defaultValue: true,
-            },
+      updatedAt: {
+        type: DataTypes.DATE,
+        field: "updated_at",
+      },
+    },
+    {
+      sequelize,
 
-            createdAt: {
-                type: DataTypes.DATE,
-                field: "created_at",
-            },
+      tableName: "vehicles",
 
-            updatedAt: {
-                type: DataTypes.DATE,
-                field: "updated_at",
-            },
-        },
-        {
-            sequelize,
+      timestamps: true,
 
-            tableName: "vehicles",
+      underscored: true,
+    },
+  );
 
-            timestamps: true,
-
-            underscored: true,
-        }
-    );
-
-
-    return Vehicle;
+  return Vehicle;
 }

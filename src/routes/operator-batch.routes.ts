@@ -1,26 +1,32 @@
 import { Router } from "express";
 
 import {
-    changeOperatorBatchStatus,
-    createOperatorBatch,
-    dispatchClientBatch,
-    evaluateOperatorBatch,
-    getOperatorBatchById,
-    getOperatorBatches,
-    previewOperatorBatchNumber,
-    receiveOperatorBatch,
+  changeOperatorBatchStatus,
+  createOperatorBatch,
+  dispatchClientBatch,
+  evaluateOperatorBatch,
+  getOperatorBatchById,
+  getOperatorBatches,
+  previewOperatorBatchNumber,
+  receiveOperatorBatch,
 } from "../controllers/operator-batch.controller.js";
 
 import {
-    addBatchItem,
-    getBatchItems,
-    removeBatchItem,
-    updateBatchItem,
+  dispatchBatchToClientController,
+  getActiveDispatchDriverShiftsController,
+} from "../controllers/batch-dispatch.controller.js";
+
+import {
+  addBatchItem,
+  getBatchItems,
+  removeBatchItem,
+  updateBatchItem,
 } from "../controllers/operator-batch-item.controller.js";
 
 import {
-    createBatchMovement,
-    getBatchMovements,
+  closeBatchGarmentWithIncident,
+  createBatchMovement,
+  getBatchMovements,
 } from "../controllers/operator-movement.controller.js";
 
 import { authMiddleware } from "../middlewares/auth.middleware.js";
@@ -34,21 +40,27 @@ router.use(authMiddleware);
  * Ver lotes
  */
 router.get(
-    "/batches",
-    requireRole("admin", "client_operator", "warehouse_operator"),
-    getOperatorBatches
+  "/batches",
+  requireRole("admin", "client_operator", "warehouse_operator"),
+  getOperatorBatches,
 );
 
 router.get(
-    '/batches/preview-number',
-    requireRole('admin', 'client_operator'),
-    previewOperatorBatchNumber,
+  "/batches/preview-number",
+  requireRole("admin", "client_operator"),
+  previewOperatorBatchNumber,
 );
 
 router.get(
-    "/batches/:id",
-    requireRole("admin", "client_operator", "warehouse_operator"),
-    getOperatorBatchById
+  "/dispatch-driver-shifts",
+  requireRole("admin", "warehouse_operator"),
+  getActiveDispatchDriverShiftsController,
+);
+
+router.get(
+  "/batches/:id",
+  requireRole("admin", "client_operator", "warehouse_operator"),
+  getOperatorBatchById,
 );
 
 /**
@@ -56,9 +68,9 @@ router.get(
  * Solo cliente y admin
  */
 router.post(
-    "/batches",
-    requireRole("admin", "client_operator"),
-    createOperatorBatch
+  "/batches",
+  requireRole("admin", "client_operator"),
+  createOperatorBatch,
 );
 
 /**
@@ -66,15 +78,15 @@ router.post(
  * Solo cliente y admin
  */
 router.get(
-    "/batches/:batchId/items",
-    requireRole("admin", "client_operator", "warehouse_operator"),
-    getBatchItems
+  "/batches/:batchId/items",
+  requireRole("admin", "client_operator", "warehouse_operator"),
+  getBatchItems,
 );
 
 router.post(
-    "/batches/:batchId/items",
-    requireRole("admin", "client_operator"),
-    addBatchItem
+  "/batches/:batchId/items",
+  requireRole("admin", "client_operator"),
+  addBatchItem,
 );
 
 /**
@@ -82,27 +94,33 @@ router.post(
  * Solo planta y admin
  */
 router.get(
-    "/batches/:batchId/movements",
-    requireRole("admin", "warehouse_operator", "client_operator"),
-    getBatchMovements
+  "/batches/:batchId/movements",
+  requireRole("admin", "warehouse_operator", "client_operator"),
+  getBatchMovements,
 );
 
 router.post(
-    "/batches/:batchId/movements",
-    requireRole("admin", "warehouse_operator"),
-    createBatchMovement
+  "/batches/:batchId/movements",
+  requireRole("admin", "warehouse_operator", "client_operator"),
+  createBatchMovement,
+);
+
+router.post(
+  "/batches/:batchId/incidents",
+  requireRole("admin", "warehouse_operator", "client_operator"),
+  closeBatchGarmentWithIncident,
 );
 
 router.put(
-    "/batches/:batchId/items/:itemId",
-    requireRole("admin", "client_operator"),
-    updateBatchItem
+  "/batches/:batchId/items/:itemId",
+  requireRole("admin", "client_operator"),
+  updateBatchItem,
 );
 
 router.delete(
-    "/batches/:batchId/items/:itemId",
-    requireRole("admin", "client_operator"),
-    removeBatchItem
+  "/batches/:batchId/items/:itemId",
+  requireRole("admin", "client_operator"),
+  removeBatchItem,
 );
 
 /**
@@ -110,26 +128,47 @@ router.delete(
  * Solo planta y admin
  */
 router.patch(
-    "/batches/:id/receive",
-    requireRole("admin", "warehouse_operator"),
-    receiveOperatorBatch
+  "/batches/:id/receive",
+  requireRole("admin", "warehouse_operator"),
+  receiveOperatorBatch,
 );
 
 router.patch(
-    "/batches/:id/evaluate",
-    requireRole("admin", "warehouse_operator"),
-    evaluateOperatorBatch
+  "/batches/:id/evaluate",
+  requireRole("admin", "warehouse_operator"),
+  evaluateOperatorBatch,
 );
 router.patch(
-    "/batches/:id/dispatch",
-    requireRole("admin", "client_operator"),
-    dispatchClientBatch
+  "/batches/:id/dispatch",
+  requireRole("admin", "client_operator"),
+  dispatchClientBatch,
+);
+
+/**
+ * =========================================================
+ * PLANTA -> CLIENTE
+ *
+ * EN_PROCESO
+ * ->
+ * EN_TRASLADO
+ *
+ * Aquí se decide:
+ *
+ * - con DTE52
+ * - sin DTE52
+ * =========================================================
+ */
+
+router.patch(
+  "/batches/:id/dispatch-to-client",
+  requireRole("admin", "warehouse_operator"),
+  dispatchBatchToClientController,
 );
 
 router.patch(
-    "/batches/:id/change-status",
-    requireRole("admin", "warehouse_operator", "client_operator"),
-    changeOperatorBatchStatus
+  "/batches/:id/change-status",
+  requireRole("admin", "warehouse_operator", "client_operator"),
+  changeOperatorBatchStatus,
 );
 
 export default router;

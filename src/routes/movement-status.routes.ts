@@ -6,10 +6,10 @@ import { requireRole } from "../middlewares/role.middleware.js";
 const router = Router();
 
 router.get(
-    "/",
-    authMiddleware,
-    requireRole("admin", "warehouse_operator", "client_operator"),
-    getMovementStatuses
+  "/",
+  authMiddleware,
+  requireRole("admin", "warehouse_operator", "client_operator"),
+  getMovementStatuses,
 );
 
 export default router;

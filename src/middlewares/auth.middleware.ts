@@ -1,11 +1,11 @@
+import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import type { Request, Response, NextFunction } from "express";
-import { Role, User, Client } from "../models/index.js";
+import { Client, Role, User } from "../models/index.js";
 
 export async function authMiddleware(
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) {
   try {
     const authHeader = req.headers.authorization;
@@ -19,10 +19,7 @@ export async function authMiddleware(
 
     const token = authHeader.split(" ")[1];
 
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET as string
-    ) as {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as {
       id: string;
       email: string;
       role_id: string;

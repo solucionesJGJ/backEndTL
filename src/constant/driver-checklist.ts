@@ -1,170 +1,121 @@
 export type DriverChecklistDefinition = {
-    category:
-    | "vehicle"
-    | "driver";
+  category: "vehicle" | "driver";
 
-    code: string;
+  code: string;
 
-    label: string;
+  label: string;
 
-    required: boolean;
+  required: boolean;
 };
 
+export const DRIVER_CHECKLIST: DriverChecklistDefinition[] = [
+  {
+    category: "vehicle",
 
-export const DRIVER_CHECKLIST:
-    DriverChecklistDefinition[] = [
+    code: "TIRES",
 
-        {
-            category:
-                "vehicle",
+    label: "Neumáticos en condiciones adecuadas",
 
-            code:
-                "TIRES",
+    required: true,
+  },
 
-            label:
-                "Neumáticos en condiciones adecuadas",
+  {
+    category: "vehicle",
 
-            required:
-                true,
-        },
+    code: "LIGHTS",
 
-        {
-            category:
-                "vehicle",
+    label: "Luces funcionando correctamente",
 
-            code:
-                "LIGHTS",
+    required: true,
+  },
 
-            label:
-                "Luces funcionando correctamente",
+  {
+    category: "vehicle",
 
-            required:
-                true,
-        },
+    code: "BRAKES",
 
-        {
-            category:
-                "vehicle",
+    label: "Sistema de frenos en condiciones",
 
-            code:
-                "BRAKES",
+    required: true,
+  },
 
-            label:
-                "Sistema de frenos en condiciones",
+  {
+    category: "vehicle",
 
-            required:
-                true,
-        },
+    code: "LEVELS",
 
-        {
-            category:
-                "vehicle",
+    label: "Niveles de aceite y fluidos revisados",
 
-            code:
-                "LEVELS",
+    required: true,
+  },
 
-            label:
-                "Niveles de aceite y fluidos revisados",
+  {
+    category: "vehicle",
 
-            required:
-                true,
-        },
+    code: "VEHICLE_DOCUMENTS",
 
-        {
-            category:
-                "vehicle",
+    label: "Documentación del vehículo disponible",
 
-            code:
-                "VEHICLE_DOCUMENTS",
+    required: true,
+  },
 
-            label:
-                "Documentación del vehículo disponible",
+  {
+    category: "vehicle",
 
-            required:
-                true,
-        },
+    code: "CLEANING",
 
-        {
-            category:
-                "vehicle",
+    label: "Vehículo limpio y en condiciones de uso",
 
-            code:
-                "CLEANING",
+    required: false,
+  },
 
-            label:
-                "Vehículo limpio y en condiciones de uso",
+  {
+    category: "vehicle",
 
-            required:
-                false,
-        },
+    code: "VISIBLE_DAMAGE",
 
-        {
-            category:
-                "vehicle",
+    label: "Sin daños visibles relevantes",
 
-            code:
-                "VISIBLE_DAMAGE",
+    required: false,
+  },
 
-            label:
-                "Sin daños visibles relevantes",
+  {
+    category: "driver",
 
-            required:
-                false,
-        },
+    code: "LICENSE",
 
-        {
-            category:
-                "driver",
+    label: "Licencia de conducir disponible y vigente",
 
-            code:
-                "LICENSE",
+    required: true,
+  },
 
-            label:
-                "Licencia de conducir disponible y vigente",
+  {
+    category: "driver",
 
-            required:
-                true,
-        },
+    code: "FITNESS",
 
-        {
-            category:
-                "driver",
+    label: "Condición física adecuada para conducir",
 
-            code:
-                "FITNESS",
+    required: true,
+  },
 
-            label:
-                "Condición física adecuada para conducir",
+  {
+    category: "driver",
 
-            required:
-                true,
-        },
+    code: "SAFETY_EQUIPMENT",
 
-        {
-            category:
-                "driver",
+    label: "Elementos de seguridad disponibles",
 
-            code:
-                "SAFETY_EQUIPMENT",
+    required: true,
+  },
 
-            label:
-                "Elementos de seguridad disponibles",
+  {
+    category: "driver",
 
-            required:
-                true,
-        },
+    code: "DRIVER_DOCUMENTS",
 
-        {
-            category:
-                "driver",
+    label: "Documentación personal requerida disponible",
 
-            code:
-                "DRIVER_DOCUMENTS",
-
-            label:
-                "Documentación personal requerida disponible",
-
-            required:
-                true,
-        },
-    ];
+    required: true,
+  },
+];

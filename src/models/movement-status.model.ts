@@ -1,63 +1,63 @@
 import {
-    DataTypes,
-    Model,
-    type Sequelize,
-    type CreationOptional,
-    type InferAttributes,
-    type InferCreationAttributes,
+  DataTypes,
+  Model,
+  type CreationOptional,
+  type InferAttributes,
+  type InferCreationAttributes,
+  type Sequelize,
 } from "sequelize";
 
 export class MovementStatus extends Model<
-    InferAttributes<MovementStatus>,
-    InferCreationAttributes<MovementStatus>
+  InferAttributes<MovementStatus>,
+  InferCreationAttributes<MovementStatus>
 > {
-    declare id: CreationOptional<string>;
-    declare code: string;
-    declare name: string;
-    declare sort_order: number;
-    declare createdAt: CreationOptional<Date>;
-    declare updatedAt: CreationOptional<Date>;
+  declare id: CreationOptional<string>;
+  declare code: string;
+  declare name: string;
+  declare sort_order: number;
+  declare createdAt: CreationOptional<Date>;
+  declare updatedAt: CreationOptional<Date>;
 }
 
 export function initMovementStatusModel(
-    sequelize: Sequelize
+  sequelize: Sequelize,
 ): typeof MovementStatus {
-    MovementStatus.init(
-        {
-            id: {
-                type: DataTypes.UUID,
-                defaultValue: DataTypes.UUIDV4,
-                primaryKey: true,
-            },
-            code: {
-                type: DataTypes.STRING(50),
-                allowNull: false,
-                unique: true,
-            },
-            name: {
-                type: DataTypes.STRING(100),
-                allowNull: false,
-            },
-            sort_order: {
-                type: DataTypes.INTEGER,
-                allowNull: false,
-            },
-            createdAt: {
-                type: DataTypes.DATE,
-                field: "created_at",
-            },
-            updatedAt: {
-                type: DataTypes.DATE,
-                field: "updated_at",
-            },
-        },
-        {
-            sequelize,
-            tableName: "movement_statuses",
-            timestamps: true,
-            underscored: true,
-        }
-    );
+  MovementStatus.init(
+    {
+      id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true,
+      },
+      code: {
+        type: DataTypes.STRING(50),
+        allowNull: false,
+        unique: true,
+      },
+      name: {
+        type: DataTypes.STRING(100),
+        allowNull: false,
+      },
+      sort_order: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      createdAt: {
+        type: DataTypes.DATE,
+        field: "created_at",
+      },
+      updatedAt: {
+        type: DataTypes.DATE,
+        field: "updated_at",
+      },
+    },
+    {
+      sequelize,
+      tableName: "movement_statuses",
+      timestamps: true,
+      underscored: true,
+    },
+  );
 
-    return MovementStatus;
+  return MovementStatus;
 }

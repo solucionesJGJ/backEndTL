@@ -1,55 +1,55 @@
 import {
-    DataTypes,
-    Model,
-    type Sequelize,
-    type CreationOptional,
-    type InferAttributes,
-    type InferCreationAttributes,
+  DataTypes,
+  Model,
+  type CreationOptional,
+  type InferAttributes,
+  type InferCreationAttributes,
+  type Sequelize,
 } from "sequelize";
 
 export class Role extends Model<
-    InferAttributes<Role>,
-    InferCreationAttributes<Role>
+  InferAttributes<Role>,
+  InferCreationAttributes<Role>
 > {
-    declare id: CreationOptional<string>;
-    declare name: string;
-    declare createdAt: CreationOptional<Date>;
-    declare updatedAt: CreationOptional<Date>;
-    declare nameDisplay: string;
+  declare id: CreationOptional<string>;
+  declare name: string;
+  declare createdAt: CreationOptional<Date>;
+  declare updatedAt: CreationOptional<Date>;
+  declare nameDisplay: string;
 }
 
 export function initRoleModel(sequelize: Sequelize): typeof Role {
-    Role.init(
-        {
-            id: {
-                type: DataTypes.UUID,
-                defaultValue: DataTypes.UUIDV4,
-                primaryKey: true,
-            },
-            name: {
-                type: DataTypes.STRING(50),
-                allowNull: false,
-                unique: true,
-            },
-            createdAt: {
-                type: DataTypes.DATE,
-                field: "created_at",
-            },
-            updatedAt: {
-                type: DataTypes.DATE,
-                field: "updated_at",
-            },
-            nameDisplay: {
-                type: DataTypes.STRING(100),
-            },
-        },
-        {
-            sequelize,
-            tableName: "roles",
-            timestamps: true,
-            underscored: true,
-        }
-    );
+  Role.init(
+    {
+      id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true,
+      },
+      name: {
+        type: DataTypes.STRING(50),
+        allowNull: false,
+        unique: true,
+      },
+      createdAt: {
+        type: DataTypes.DATE,
+        field: "created_at",
+      },
+      updatedAt: {
+        type: DataTypes.DATE,
+        field: "updated_at",
+      },
+      nameDisplay: {
+        type: DataTypes.STRING(100),
+      },
+    },
+    {
+      sequelize,
+      tableName: "roles",
+      timestamps: true,
+      underscored: true,
+    },
+  );
 
-    return Role;
+  return Role;
 }
