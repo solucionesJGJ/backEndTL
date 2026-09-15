@@ -34,7 +34,7 @@ export async function getUsers(req: Request, res: Response) {
 
 export async function createUser(req: Request, res: Response) {
   try {
-    const { name, email, password, role_id, client_id } = req.body;
+    const { name, rut,email, password, role_id, client_id } = req.body;
 
     if (
       !isNonEmptyString(name) ||
@@ -118,6 +118,7 @@ export async function createUser(req: Request, res: Response) {
 
     const user = await User.create({
       name: normalizeText(name),
+      rut,
       email: normalizedEmail,
       password_hash: passwordHash,
       role_id,
@@ -135,6 +136,7 @@ export async function createUser(req: Request, res: Response) {
         role_id: user.role_id,
         client_id: user.client_id,
         active: user.active,
+        rut: user.rut,
       },
     });
   } catch (error) {
@@ -148,7 +150,7 @@ export async function createUser(req: Request, res: Response) {
 export async function updateUser(req: Request, res: Response) {
   try {
     const id = req.params.id as string;
-    const { name, email, password, role_id, client_id, active } = req.body;
+    const { name, rut, email, password, role_id, client_id, active } = req.body;
 
     const user = await User.findByPk(id);
 
@@ -247,6 +249,7 @@ export async function updateUser(req: Request, res: Response) {
       role_id,
       client_id: roleRequiresClient(role.name) ? client_id : null,
       active: typeof active === "boolean" ? active : user.active,
+      rut: rut !== undefined ? rut : user.rut,
     };
 
     if (password && password.trim()) {
@@ -265,6 +268,7 @@ export async function updateUser(req: Request, res: Response) {
         role_id: user.role_id,
         client_id: user.client_id,
         active: user.active,
+        rut: user.rut,
       },
     });
   } catch (error) {
