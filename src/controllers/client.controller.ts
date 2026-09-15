@@ -1,8 +1,12 @@
 import type { Request, Response } from "express";
-
-import { Client } from "../models/index.js";
-
 import { Op } from "sequelize";
+
+import {
+  Client,
+  ClientEconomicActivity,
+  EconomicActivity,
+  sequelize,
+} from "../models/index.js";
 
 import {
   formatRut,
@@ -13,37 +17,101 @@ import {
   normalizeText,
 } from "../utils/validators.js";
 
-/**
- * =========================================================
- * CREAR CLIENTE
- * =========================================================
- */
+function clientInclude() {
+  return [
+    {
+      model: ClientEconomicActivity,
+      as: "economic_activity_links",
+      include: [
+        {
+          model: EconomicActivity,
+          as: "economic_activity",
+        },
+      ],
+    },
+  ];
+}
+
+function normalizeEconomicActivityIds(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return [
+    ...new Set(
+      value.filter(
+        (item): item is string =>
+          typeof item === "string" && item.trim().length > 0,
+      ),
+    ),
+  ];
+}
+
+async function validateEconomicActivities(
+  activityIds: string[],
+  dteActivityId: string | null,
+) {
+  if (activityIds.length === 0) {
+    return {
+      activities: [] as EconomicActivity[],
+      dteActivity: null as EconomicActivity | null,
+    };
+  }
+
+  const activities = await EconomicActivity.findAll({
+    where: {
+      id: {
+        [Op.in]: activityIds,
+      },
+      active: true,
+    },
+  });
+
+  if (activities.length !== activityIds.length) {
+    throw new Error("INVALID_ECONOMIC_ACTIVITIES");
+  }
+
+  let dteActivity: EconomicActivity | null = null;
+
+  if (dteActivityId) {
+    if (!activityIds.includes(dteActivityId)) {
+      throw new Error("INVALID_DTE_ACTIVITY");
+    }
+
+    dteActivity =
+      activities.find((activity) => activity.id === dteActivityId) || null;
+
+    if (!dteActivity) {
+      throw new Error("INVALID_DTE_ACTIVITY");
+    }
+  }
+
+  return {
+    activities,
+    dteActivity,
+  };
+}
+
 export async function createClient(req: Request, res: Response) {
+  const transaction = await sequelize.transaction();
+
   try {
     const {
       name,
       rut,
-
       legal_name,
-      business_activity,
-
       address,
       commune,
       city,
-
       dte_email,
-
       contact_name,
       contact_email,
       contact_phone,
-
       code_prefix,
+      economic_activity_ids,
+      dte_economic_activity_id,
     } = req.body;
 
-    /**
-     * Campos mínimos operacionales
-     * que TL ya exigía.
-     */
     if (
       !isNonEmptyString(name) ||
       !isNonEmptyString(rut) ||
@@ -51,6 +119,8 @@ export async function createClient(req: Request, res: Response) {
       !isNonEmptyString(contact_email) ||
       !isNonEmptyString(contact_phone)
     ) {
+      await transaction.rollback();
+
       return res.status(400).json({
         ok: false,
         message: "Nombre, RUT y datos de contacto son obligatorios",
@@ -58,6 +128,8 @@ export async function createClient(req: Request, res: Response) {
     }
 
     if (!isValidRut(rut)) {
+      await transaction.rollback();
+
       return res.status(400).json({
         ok: false,
         message: "El RUT ingresado no es valido",
@@ -65,17 +137,17 @@ export async function createClient(req: Request, res: Response) {
     }
 
     if (!isValidEmail(contact_email)) {
+      await transaction.rollback();
+
       return res.status(400).json({
         ok: false,
         message: "El email de contacto no es valido",
       });
     }
 
-    /**
-     * Email DTE es opcional,
-     * pero si viene debe ser válido.
-     */
     if (isNonEmptyString(dte_email) && !isValidEmail(dte_email)) {
+      await transaction.rollback();
+
       return res.status(400).json({
         ok: false,
         message: "El email DTE no es valido",
@@ -83,6 +155,8 @@ export async function createClient(req: Request, res: Response) {
     }
 
     if (!isValidPhoneCL(contact_phone)) {
+      await transaction.rollback();
+
       return res.status(400).json({
         ok: false,
         message: "El telefono debe tener formato chileno valido",
@@ -91,40 +165,33 @@ export async function createClient(req: Request, res: Response) {
 
     const normalizedRut = formatRut(rut);
 
-    const normalizedEmail = contact_email.trim().toLowerCase();
-
-    const normalizedDteEmail = isNonEmptyString(dte_email)
-      ? dte_email.trim().toLowerCase()
-      : null;
-
-    /**
-     * Validar RUT único.
-     */
     const existingClient = await Client.findOne({
       where: {
         rut: normalizedRut,
       },
+      transaction,
     });
 
     if (existingClient) {
+      await transaction.rollback();
+
       return res.status(409).json({
         ok: false,
         message: "Ya existe un cliente con ese RUT",
       });
     }
 
-    /**
-     * Prefijo opcional,
-     * pero si existe debe ser único.
-     */
     if (isNonEmptyString(code_prefix)) {
       const existingCodePrefix = await Client.findOne({
         where: {
           code_prefix: code_prefix.trim().toUpperCase(),
         },
+        transaction,
       });
 
       if (existingCodePrefix) {
+        await transaction.rollback();
+
         return res.status(409).json({
           ok: false,
           message: "Ya existe un cliente con ese prefijo de código",
@@ -132,58 +199,95 @@ export async function createClient(req: Request, res: Response) {
       }
     }
 
-    const client = await Client.create({
-      /**
-       * Identificación TL.
-       */
-      name: normalizeText(name),
+    const activityIds = normalizeEconomicActivityIds(economic_activity_ids);
 
-      rut: normalizedRut,
+    const dteActivityId = isNonEmptyString(dte_economic_activity_id)
+      ? dte_economic_activity_id.trim()
+      : null;
 
-      /**
-       * Datos tributarios.
-       */
-      legal_name: isNonEmptyString(legal_name)
-        ? normalizeText(legal_name)
-        : null,
+    const { dteActivity } = await validateEconomicActivities(
+      activityIds,
+      dteActivityId,
+    );
 
-      business_activity: isNonEmptyString(business_activity)
-        ? normalizeText(business_activity)
-        : null,
+    const client = await Client.create(
+      {
+        name: normalizeText(name),
+        rut: normalizedRut,
 
-      address: isNonEmptyString(address) ? normalizeText(address) : null,
+        legal_name: isNonEmptyString(legal_name)
+          ? normalizeText(legal_name)
+          : null,
 
-      commune: isNonEmptyString(commune) ? normalizeText(commune) : null,
+        business_activity: dteActivity?.description || null,
 
-      city: isNonEmptyString(city) ? normalizeText(city) : null,
+        address: isNonEmptyString(address) ? normalizeText(address) : null,
+        commune: isNonEmptyString(commune) ? normalizeText(commune) : null,
+        city: isNonEmptyString(city) ? normalizeText(city) : null,
 
-      dte_email: normalizedDteEmail,
+        dte_email: isNonEmptyString(dte_email)
+          ? dte_email.trim().toLowerCase()
+          : null,
 
-      /**
-       * Contacto.
-       */
-      contact_name: normalizeText(contact_name),
+        contact_name: normalizeText(contact_name),
+        contact_email: contact_email.trim().toLowerCase(),
+        contact_phone: contact_phone.trim(),
 
-      contact_email: normalizedEmail,
+        code_prefix: isNonEmptyString(code_prefix)
+          ? code_prefix.trim().toUpperCase()
+          : null,
 
-      contact_phone: contact_phone.trim(),
+        active: true,
+      },
+      {
+        transaction,
+      },
+    );
 
-      /**
-       * Prendas.
-       */
-      code_prefix: isNonEmptyString(code_prefix)
-        ? code_prefix.trim().toUpperCase()
-        : null,
+    if (activityIds.length > 0) {
+      await ClientEconomicActivity.bulkCreate(
+        activityIds.map((economicActivityId) => ({
+          client_id: client.id,
+          economic_activity_id: economicActivityId,
+          is_dte_default: economicActivityId === dteActivityId,
+        })),
+        {
+          transaction,
+        },
+      );
+    }
 
-      active: true,
+    await transaction.commit();
+
+    const createdClient = await Client.findByPk(client.id, {
+      include: clientInclude(),
     });
 
     return res.status(201).json({
       ok: true,
       message: "Cliente creado correctamente",
-      data: client,
+      data: createdClient,
     });
   } catch (error) {
+    await transaction.rollback();
+
+    if (error instanceof Error) {
+      if (error.message === "INVALID_ECONOMIC_ACTIVITIES") {
+        return res.status(400).json({
+          ok: false,
+          message: "Una o más actividades económicas no son válidas",
+        });
+      }
+
+      if (error.message === "INVALID_DTE_ACTIVITY") {
+        return res.status(400).json({
+          ok: false,
+          message:
+            "La actividad DTE debe pertenecer a las actividades del cliente",
+        });
+      }
+    }
+
     console.error(error);
 
     return res.status(500).json({
@@ -193,14 +297,10 @@ export async function createClient(req: Request, res: Response) {
   }
 }
 
-/**
- * =========================================================
- * LISTAR CLIENTES
- * =========================================================
- */
 export async function getClients(req: Request, res: Response) {
   try {
     const clients = await Client.findAll({
+      include: clientInclude(),
       order: [["createdAt", "DESC"]],
     });
 
@@ -218,16 +318,13 @@ export async function getClients(req: Request, res: Response) {
   }
 }
 
-/**
- * =========================================================
- * OBTENER CLIENTE
- * =========================================================
- */
 export async function getClientById(req: Request, res: Response) {
   try {
     const id = req.params.id as string;
 
-    const client = await Client.findByPk(id);
+    const client = await Client.findByPk(id, {
+      include: clientInclude(),
+    });
 
     if (!client) {
       return res.status(404).json({
@@ -250,39 +347,36 @@ export async function getClientById(req: Request, res: Response) {
   }
 }
 
-/**
- * =========================================================
- * ACTUALIZAR CLIENTE
- * =========================================================
- */
 export async function updateClient(req: Request, res: Response) {
+  const transaction = await sequelize.transaction();
+
   try {
     const id = req.params.id as string;
 
     const {
       name,
       rut,
-
       legal_name,
-      business_activity,
-
       address,
       commune,
       city,
-
       dte_email,
-
       contact_name,
       contact_email,
       contact_phone,
-
       active,
       code_prefix,
+      economic_activity_ids,
+      dte_economic_activity_id,
     } = req.body;
 
-    const client = await Client.findByPk(id);
+    const client = await Client.findByPk(id, {
+      transaction,
+    });
 
     if (!client) {
+      await transaction.rollback();
+
       return res.status(404).json({
         ok: false,
         message: "Cliente no encontrado",
@@ -296,6 +390,8 @@ export async function updateClient(req: Request, res: Response) {
       !isNonEmptyString(contact_email) ||
       !isNonEmptyString(contact_phone)
     ) {
+      await transaction.rollback();
+
       return res.status(400).json({
         ok: false,
         message: "Nombre, RUT y datos de contacto son obligatorios",
@@ -303,6 +399,8 @@ export async function updateClient(req: Request, res: Response) {
     }
 
     if (!isValidRut(rut)) {
+      await transaction.rollback();
+
       return res.status(400).json({
         ok: false,
         message: "El RUT ingresado no es valido",
@@ -310,6 +408,8 @@ export async function updateClient(req: Request, res: Response) {
     }
 
     if (!isValidEmail(contact_email)) {
+      await transaction.rollback();
+
       return res.status(400).json({
         ok: false,
         message: "El email de contacto no es valido",
@@ -317,6 +417,8 @@ export async function updateClient(req: Request, res: Response) {
     }
 
     if (isNonEmptyString(dte_email) && !isValidEmail(dte_email)) {
+      await transaction.rollback();
+
       return res.status(400).json({
         ok: false,
         message: "El email DTE no es valido",
@@ -324,6 +426,8 @@ export async function updateClient(req: Request, res: Response) {
     }
 
     if (!isValidPhoneCL(contact_phone)) {
+      await transaction.rollback();
+
       return res.status(400).json({
         ok: false,
         message: "El telefono debe tener formato chileno valido",
@@ -332,43 +436,39 @@ export async function updateClient(req: Request, res: Response) {
 
     const normalizedRut = formatRut(rut);
 
-    /**
-     * Validar RUT único,
-     * excluyendo cliente actual.
-     */
     const existingClient = await Client.findOne({
       where: {
         rut: normalizedRut,
-
         id: {
           [Op.ne]: id,
         },
       },
+      transaction,
     });
 
     if (existingClient) {
+      await transaction.rollback();
+
       return res.status(409).json({
         ok: false,
         message: "Ya existe otro cliente con ese RUT",
       });
     }
 
-    /**
-     * Validar prefijo único,
-     * excluyendo cliente actual.
-     */
     if (isNonEmptyString(code_prefix)) {
       const existingCodePrefix = await Client.findOne({
         where: {
           code_prefix: code_prefix.trim().toUpperCase(),
-
           id: {
             [Op.ne]: id,
           },
         },
+        transaction,
       });
 
       if (existingCodePrefix) {
+        await transaction.rollback();
+
         return res.status(409).json({
           ok: false,
           message: "Ya existe otro cliente con ese prefijo de código",
@@ -376,54 +476,102 @@ export async function updateClient(req: Request, res: Response) {
       }
     }
 
-    await client.update({
-      name: normalizeText(name),
+    const activityIds = normalizeEconomicActivityIds(economic_activity_ids);
 
-      rut: normalizedRut,
+    const dteActivityId = isNonEmptyString(dte_economic_activity_id)
+      ? dte_economic_activity_id.trim()
+      : null;
 
-      /**
-       * Datos tributarios.
-       */
-      legal_name: isNonEmptyString(legal_name)
-        ? normalizeText(legal_name)
-        : null,
+    const { dteActivity } = await validateEconomicActivities(
+      activityIds,
+      dteActivityId,
+    );
 
-      business_activity: isNonEmptyString(business_activity)
-        ? normalizeText(business_activity)
-        : null,
+    await client.update(
+      {
+        name: normalizeText(name),
+        rut: normalizedRut,
 
-      address: isNonEmptyString(address) ? normalizeText(address) : null,
+        legal_name: isNonEmptyString(legal_name)
+          ? normalizeText(legal_name)
+          : null,
 
-      commune: isNonEmptyString(commune) ? normalizeText(commune) : null,
+        business_activity: dteActivity?.description || null,
 
-      city: isNonEmptyString(city) ? normalizeText(city) : null,
+        address: isNonEmptyString(address) ? normalizeText(address) : null,
+        commune: isNonEmptyString(commune) ? normalizeText(commune) : null,
+        city: isNonEmptyString(city) ? normalizeText(city) : null,
 
-      dte_email: isNonEmptyString(dte_email)
-        ? dte_email.trim().toLowerCase()
-        : null,
+        dte_email: isNonEmptyString(dte_email)
+          ? dte_email.trim().toLowerCase()
+          : null,
 
-      /**
-       * Contacto.
-       */
-      contact_name: normalizeText(contact_name),
+        contact_name: normalizeText(contact_name),
+        contact_email: contact_email.trim().toLowerCase(),
+        contact_phone: contact_phone.trim(),
 
-      contact_email: contact_email.trim().toLowerCase(),
+        code_prefix: isNonEmptyString(code_prefix)
+          ? code_prefix.trim().toUpperCase()
+          : null,
 
-      contact_phone: contact_phone.trim(),
+        active: typeof active === "boolean" ? active : client.active,
+      },
+      {
+        transaction,
+      },
+    );
 
-      code_prefix: isNonEmptyString(code_prefix)
-        ? code_prefix.trim().toUpperCase()
-        : null,
+    await ClientEconomicActivity.destroy({
+      where: {
+        client_id: client.id,
+      },
+      transaction,
+    });
 
-      active: typeof active === "boolean" ? active : client.active,
+    if (activityIds.length > 0) {
+      await ClientEconomicActivity.bulkCreate(
+        activityIds.map((economicActivityId) => ({
+          client_id: client.id,
+          economic_activity_id: economicActivityId,
+          is_dte_default: economicActivityId === dteActivityId,
+        })),
+        {
+          transaction,
+        },
+      );
+    }
+
+    await transaction.commit();
+
+    const updatedClient = await Client.findByPk(client.id, {
+      include: clientInclude(),
     });
 
     return res.json({
       ok: true,
       message: "Cliente actualizado correctamente",
-      data: client,
+      data: updatedClient,
     });
   } catch (error) {
+    await transaction.rollback();
+
+    if (error instanceof Error) {
+      if (error.message === "INVALID_ECONOMIC_ACTIVITIES") {
+        return res.status(400).json({
+          ok: false,
+          message: "Una o más actividades económicas no son válidas",
+        });
+      }
+
+      if (error.message === "INVALID_DTE_ACTIVITY") {
+        return res.status(400).json({
+          ok: false,
+          message:
+            "La actividad DTE debe pertenecer a las actividades del cliente",
+        });
+      }
+    }
+
     console.error(error);
 
     return res.status(500).json({

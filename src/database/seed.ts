@@ -1,4 +1,11 @@
-import { MovementStatus, Role, sequelize } from "../models/index.js";
+import {
+  EconomicActivity,
+  MovementStatus,
+  Role,
+  sequelize,
+} from "../models/index.js";
+
+import { economicActivities } from "./economic-activities.js";
 
 async function seedDatabase() {
   try {
@@ -104,6 +111,7 @@ async function seedDatabase() {
           name: "Cerrado",
           sort_order: 10,
         },
+
         {
           code: "RESUELTO_INCIDENCIA",
           name: "Resuelto con incidencia",
@@ -115,12 +123,25 @@ async function seedDatabase() {
       },
     );
 
+    /**
+     * ACTIVIDADES ECONÓMICAS SII
+     */
+    for (const activity of economicActivities) {
+      await EconomicActivity.upsert({
+        code: activity.code,
+        description: activity.description,
+        vat_affected: activity.vat_affected,
+        tax_category: activity.tax_category,
+        internet_available: activity.internet_available,
+        active: true,
+      });
+    }
+
     console.log("Seed inicial ejecutado correctamente");
 
     process.exit(0);
   } catch (error) {
     console.error("Error ejecutando seed");
-
     console.error(error);
 
     process.exit(1);

@@ -59,6 +59,16 @@ import {
   initDispatchGuideItemModel,
 } from "./dispatch-guide-item.model.js";
 
+import {
+  ClientEconomicActivity,
+  initClientEconomicActivityModel,
+} from "./client-economic-activity.model.js";
+
+import {
+  EconomicActivity,
+  initEconomicActivityModel,
+} from "./economic-activity.model.js";
+
 if (
   !process.env.DB_NAME ||
   !process.env.DB_USER ||
@@ -89,6 +99,8 @@ export const sequelize = new Sequelize(
 
 initRoleModel(sequelize);
 initClientModel(sequelize);
+initEconomicActivityModel(sequelize);
+initClientEconomicActivityModel(sequelize);
 initUserModel(sequelize);
 initGarmentModel(sequelize);
 initMovementStatusModel(sequelize);
@@ -734,11 +746,54 @@ DispatchGuideItem.belongsTo(GarmentMovement, {
   as: "movement",
 });
 
+/**
+ * =========================================================
+ * CLIENT ↔ ECONOMIC ACTIVITY
+ * =========================================================
+ */
+
+Client.hasMany(ClientEconomicActivity, {
+  foreignKey: "client_id",
+  as: "economic_activity_links",
+  onDelete: "CASCADE",
+});
+
+ClientEconomicActivity.belongsTo(Client, {
+  foreignKey: "client_id",
+  as: "client",
+});
+
+EconomicActivity.hasMany(ClientEconomicActivity, {
+  foreignKey: "economic_activity_id",
+  as: "client_links",
+});
+
+ClientEconomicActivity.belongsTo(EconomicActivity, {
+  foreignKey: "economic_activity_id",
+  as: "economic_activity",
+});
+
+Client.belongsToMany(EconomicActivity, {
+  through: ClientEconomicActivity,
+  foreignKey: "client_id",
+  otherKey: "economic_activity_id",
+  as: "economic_activities",
+});
+
+EconomicActivity.belongsToMany(Client, {
+  through: ClientEconomicActivity,
+  foreignKey: "economic_activity_id",
+  otherKey: "client_id",
+  as: "clients",
+});
+
 export {
   BillingDocument,
   BillingDocumentBatch,
   BillingDocumentItem,
   Client,
+  ClientEconomicActivity,
+  EconomicActivity,
   DispatchGuide,
   DispatchGuideItem,
   DriverShift,

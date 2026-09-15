@@ -14,11 +14,13 @@ import roleRoutes from "./role.routes.js";
 import stockRoutes from "./stock.routes.js";
 import userRoutes from "./user.routes.js";
 import vehicleRoutes from "./vehicle.routes.js";
+import economicActivityRoutes from "./economic-activity.routes.js";
 
 const router = Router();
 
 router.use("/auth", authRoutes);
 router.use("/clients", clientRoutes);
+router.use("/economic-activities", economicActivityRoutes);
 router.use("/garments", garmentRoutes);
 router.use("/users", userRoutes);
 router.use("/roles", roleRoutes);

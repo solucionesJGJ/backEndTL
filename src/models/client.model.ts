@@ -13,39 +13,30 @@ export class Client extends Model<
 > {
   declare id: CreationOptional<string>;
 
-  /**
-   * Nombre comercial utilizado dentro de TL.
-   */
   declare name: string;
 
-  /**
-   * Datos tributarios.
-   */
   declare rut: string | null;
   declare legal_name: string | null;
+
+  /**
+   * Snapshot de la actividad económica que TL
+   * utilizará por defecto al generar DTE.
+   *
+   * La relación completa se almacena en
+   * client_economic_activities.
+   */
   declare business_activity: string | null;
 
   declare address: string | null;
   declare commune: string | null;
   declare city: string | null;
 
-  /**
-   * Correo que eventualmente utilizaremos
-   * para envío/intercambio de documentos.
-   */
   declare dte_email: string | null;
 
-  /**
-   * Datos de contacto operacional.
-   */
   declare contact_name: string | null;
   declare contact_email: string | null;
   declare contact_phone: string | null;
 
-  /**
-   * Prefijo usado para los códigos
-   * de prendas del cliente.
-   */
   declare code_prefix: string | null;
 
   declare active: CreationOptional<boolean>;
@@ -63,42 +54,27 @@ export function initClientModel(sequelize: Sequelize): typeof Client {
         primaryKey: true,
       },
 
-      /**
-       * Nombre interno/comercial.
-       */
       name: {
         type: DataTypes.STRING(150),
         allowNull: false,
       },
 
-      /**
-       * RUT tributario.
-       */
       rut: {
         type: DataTypes.STRING(20),
         allowNull: true,
         unique: true,
       },
 
-      /**
-       * Razón social.
-       */
       legal_name: {
         type: DataTypes.STRING(200),
         allowNull: true,
       },
 
-      /**
-       * Giro del receptor.
-       */
       business_activity: {
-        type: DataTypes.STRING(250),
+        type: DataTypes.STRING(500),
         allowNull: true,
       },
 
-      /**
-       * Dirección tributaria/comercial.
-       */
       address: {
         type: DataTypes.TEXT,
         allowNull: true,
@@ -114,18 +90,11 @@ export function initClientModel(sequelize: Sequelize): typeof Client {
         allowNull: true,
       },
 
-      /**
-       * Correo destinado a documentos
-       * tributarios/intercambio.
-       */
       dte_email: {
         type: DataTypes.STRING(150),
         allowNull: true,
       },
 
-      /**
-       * Contacto operacional.
-       */
       contact_name: {
         type: DataTypes.STRING(150),
         allowNull: true,
@@ -141,9 +110,6 @@ export function initClientModel(sequelize: Sequelize): typeof Client {
         allowNull: true,
       },
 
-      /**
-       * Prefijo para prendas.
-       */
       code_prefix: {
         type: DataTypes.STRING(10),
         allowNull: true,
