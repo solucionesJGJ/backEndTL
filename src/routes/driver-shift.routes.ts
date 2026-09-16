@@ -6,13 +6,19 @@ import {
   getAllDriverShifts,
   getCurrentDriverShift,
   getDriverChecklist,
+  getDriverShiftDriverPhoto,
   getDriverShiftHistory,
+  getDriverShiftVehiclePhoto,
   startDriverShift,
 } from "../controllers/driver-shift.controller.js";
 
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 
 import { requireRole } from "../middlewares/role.middleware.js";
+
+import {
+  driverShiftPhotoFields,
+} from "../middlewares/driver-shift-upload.middleware.js";
 
 const router = Router();
 
@@ -36,7 +42,12 @@ router.get(
   getDriverShiftHistory,
 );
 
-router.post("/start", requireRole("admin", "transportista"), startDriverShift);
+router.post(
+  "/start",
+  requireRole("admin", "transportista"),
+  driverShiftPhotoFields,
+  startDriverShift,
+);
 
 router.patch(
   "/finish",
@@ -44,8 +55,39 @@ router.patch(
   finishDriverShift,
 );
 
-router.get("/admin/history", requireRole("admin"), getAllDriverShifts);
+/**
+ * =========================================================
+ * ADMINISTRACIÓN DE JORNADAS
+ * =========================================================
+ */
 
+router.get(
+  "/admin/history",
+  requireRole("admin"),
+  getAllDriverShifts,
+);
+
+/**
+ * Evidencias fotográficas.
+ *
+ * Se mantienen protegidas por autenticación
+ * y exclusivamente disponibles para admin.
+ */
+router.get(
+  "/:id/photo/driver",
+  requireRole("admin"),
+  getDriverShiftDriverPhoto,
+);
+
+router.get(
+  "/:id/photo/vehicle",
+  requireRole("admin"),
+  getDriverShiftVehiclePhoto,
+);
+
+/**
+ * Comprobante PDF.
+ */
 router.get(
   "/:id/ticket",
   requireRole("admin", "transportista"),

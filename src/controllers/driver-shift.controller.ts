@@ -13,7 +13,14 @@ import { DRIVER_CHECKLIST } from "../constant/driver-checklist.js";
 
 import fs from "fs";
 import path from "path";
+
 import { generateDriverShiftPdf } from "../services/driver-shift-pdf.service.js";
+
+import {
+  getDriverShiftPhotos,
+  getRelativeUploadPath,
+  removeDriverShiftPhotos,
+} from "../middlewares/driver-shift-upload.middleware.js";
 
 type IncomingChecklistItem = {
   code: string;
@@ -25,9 +32,7 @@ function buildTicketNumber() {
   const now = new Date();
 
   const year = now.getFullYear();
-
   const month = String(now.getMonth() + 1).padStart(2, "0");
-
   const day = String(now.getDate()).padStart(2, "0");
 
   const time = `${String(now.getHours()).padStart(2, "0")}${String(
@@ -83,6 +88,28 @@ async function assertDriverRole(userId: string) {
   };
 }
 
+function parseChecklist(value: unknown): IncomingChecklistItem[] | null {
+  if (Array.isArray(value)) {
+    return value as IncomingChecklistItem[];
+  }
+
+  if (typeof value !== "string" || !value.trim()) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+
+    if (!Array.isArray(parsed)) {
+      return null;
+    }
+
+    return parsed as IncomingChecklistItem[];
+  } catch {
+    return null;
+  }
+}
+
 export async function getDriverChecklist(req: Request, res: Response) {
   return res.json({
     ok: true,
@@ -102,28 +129,23 @@ export async function getCurrentDriverShift(req: Request, res: Response) {
     const shift = await DriverShift.findOne({
       where: {
         user_id: req.user.id,
-
         status: "started",
       },
 
       include: [
         {
           model: Vehicle,
-
           as: "vehicle",
         },
 
         {
           model: DriverShiftCheck,
-
           as: "checks",
         },
 
         {
           model: User,
-
           as: "driver",
-
           attributes: ["id", "name", "email"],
         },
       ],
@@ -162,7 +184,6 @@ export async function getDriverShiftHistory(req: Request, res: Response) {
       include: [
         {
           model: Vehicle,
-
           as: "vehicle",
         },
       ],
@@ -187,9 +208,14 @@ export async function getDriverShiftHistory(req: Request, res: Response) {
 export async function startDriverShift(req: Request, res: Response) {
   const transaction = await sequelize.transaction();
 
+  let transactionFinished = false;
+
   try {
     if (!req.user?.id) {
       await transaction.rollback();
+      transactionFinished = true;
+
+      removeDriverShiftPhotos(req);
 
       return res.status(401).json({
         ok: false,
@@ -201,6 +227,9 @@ export async function startDriverShift(req: Request, res: Response) {
 
     if (!roleValidation.ok) {
       await transaction.rollback();
+      transactionFinished = true;
+
+      removeDriverShiftPhotos(req);
 
       return res.status(roleValidation.status).json({
         ok: false,
@@ -208,10 +237,39 @@ export async function startDriverShift(req: Request, res: Response) {
       });
     }
 
-    const { vehicle_id, initial_mileage, observations, checklist } = req.body;
+    const {
+      vehicle_id,
+      initial_mileage,
+      observations,
+      checklist: rawChecklist,
+    } = req.body;
+
+    /**
+     * =====================================================
+     * FOTOGRAFÍAS OBLIGATORIAS
+     * =====================================================
+     */
+
+    const { driverPhoto, vehiclePhoto } = getDriverShiftPhotos(req);
+
+    if (!driverPhoto || !vehiclePhoto) {
+      await transaction.rollback();
+      transactionFinished = true;
+
+      removeDriverShiftPhotos(req);
+
+      return res.status(400).json({
+        ok: false,
+        message:
+          "Debe cargar una fotografía del conductor y una fotografía del vehículo para iniciar la jornada",
+      });
+    }
 
     if (typeof vehicle_id !== "string" || !vehicle_id.trim()) {
       await transaction.rollback();
+      transactionFinished = true;
+
+      removeDriverShiftPhotos(req);
 
       return res.status(400).json({
         ok: false,
@@ -223,6 +281,9 @@ export async function startDriverShift(req: Request, res: Response) {
 
     if (!Number.isInteger(parsedInitialMileage) || parsedInitialMileage < 0) {
       await transaction.rollback();
+      transactionFinished = true;
+
+      removeDriverShiftPhotos(req);
 
       return res.status(400).json({
         ok: false,
@@ -230,29 +291,39 @@ export async function startDriverShift(req: Request, res: Response) {
       });
     }
 
-    if (!Array.isArray(checklist)) {
+    /**
+     * multipart/form-data entrega checklist como string.
+     * Lo convertimos nuevamente a array.
+     */
+    const checklist = parseChecklist(rawChecklist);
+
+    if (!checklist) {
       await transaction.rollback();
+      transactionFinished = true;
+
+      removeDriverShiftPhotos(req);
 
       return res.status(400).json({
         ok: false,
-        message: "El checklist es obligatorio",
+        message: "El checklist es obligatorio o tiene un formato inválido",
       });
     }
 
     const activeShift = await DriverShift.findOne({
       where: {
         user_id: req.user.id,
-
         status: "started",
       },
 
       transaction,
-
       lock: transaction.LOCK.UPDATE,
     });
 
     if (activeShift) {
       await transaction.rollback();
+      transactionFinished = true;
+
+      removeDriverShiftPhotos(req);
 
       return res.status(409).json({
         ok: false,
@@ -262,8 +333,7 @@ export async function startDriverShift(req: Request, res: Response) {
 
     const vehicle = await Vehicle.findOne({
       where: {
-        id: vehicle_id,
-
+        id: vehicle_id.trim(),
         active: true,
       },
 
@@ -272,6 +342,9 @@ export async function startDriverShift(req: Request, res: Response) {
 
     if (!vehicle) {
       await transaction.rollback();
+      transactionFinished = true;
+
+      removeDriverShiftPhotos(req);
 
       return res.status(404).json({
         ok: false,
@@ -279,17 +352,38 @@ export async function startDriverShift(req: Request, res: Response) {
       });
     }
 
-    const incomingChecks = checklist as IncomingChecklistItem[];
+    const checkMap = new Map<string, IncomingChecklistItem>();
 
-    const checkMap = new Map(incomingChecks.map((item) => [item.code, item]));
+    for (const item of checklist) {
+      if (
+        !item ||
+        typeof item.code !== "string" ||
+        typeof item.checked !== "boolean"
+      ) {
+        await transaction.rollback();
+        transactionFinished = true;
+
+        removeDriverShiftPhotos(req);
+
+        return res.status(400).json({
+          ok: false,
+          message: "El checklist contiene elementos inválidos",
+        });
+      }
+
+      checkMap.set(item.code, item);
+    }
 
     /**
-     * Comprobar que vienen todos
-     * los códigos del checklist.
+     * Todos los códigos definidos deben venir
+     * en la solicitud.
      */
     for (const definition of DRIVER_CHECKLIST) {
       if (!checkMap.has(definition.code)) {
         await transaction.rollback();
+        transactionFinished = true;
+
+        removeDriverShiftPhotos(req);
 
         return res.status(400).json({
           ok: false,
@@ -299,13 +393,16 @@ export async function startDriverShift(req: Request, res: Response) {
     }
 
     /**
-     * Los obligatorios deben estar OK.
+     * Todos los checks obligatorios deben estar OK.
      */
     for (const definition of DRIVER_CHECKLIST) {
       const check = checkMap.get(definition.code);
 
       if (definition.required && check?.checked !== true) {
         await transaction.rollback();
+        transactionFinished = true;
+
+        removeDriverShiftPhotos(req);
 
         return res.status(400).json({
           ok: false,
@@ -314,11 +411,20 @@ export async function startDriverShift(req: Request, res: Response) {
       }
     }
 
+    const driverPhotoPath = getRelativeUploadPath(driverPhoto);
+    const vehiclePhotoPath = getRelativeUploadPath(vehiclePhoto);
+
+    /**
+     * =====================================================
+     * CREACIÓN DE JORNADA
+     * =====================================================
+     */
+
     const shift = await DriverShift.create(
       {
         user_id: req.user.id,
 
-        vehicle_id,
+        vehicle_id: vehicle_id.trim(),
 
         status: "started",
 
@@ -340,6 +446,10 @@ export async function startDriverShift(req: Request, res: Response) {
         ticket_number: buildTicketNumber(),
 
         ticket_pdf_path: null,
+
+        driver_photo_path: driverPhotoPath,
+
+        vehicle_photo_path: vehiclePhotoPath,
       },
       {
         transaction,
@@ -347,12 +457,7 @@ export async function startDriverShift(req: Request, res: Response) {
     );
 
     /**
-     * Persistimos una copia textual
-     * del checklist usado ese día.
-     *
-     * Aunque en el futuro cambie
-     * DRIVER_CHECKLIST, esta jornada
-     * conserva sus labels históricos.
+     * Guardamos snapshot histórico del checklist.
      */
     for (const definition of DRIVER_CHECKLIST) {
       const incoming = checkMap.get(definition.code);
@@ -371,7 +476,7 @@ export async function startDriverShift(req: Request, res: Response) {
 
           observations:
             typeof incoming?.observations === "string" &&
-            incoming.observations.trim()
+              incoming.observations.trim()
               ? incoming.observations.trim()
               : null,
         },
@@ -382,26 +487,23 @@ export async function startDriverShift(req: Request, res: Response) {
     }
 
     await transaction.commit();
+    transactionFinished = true;
 
     const createdShift = await DriverShift.findByPk(shift.id, {
       include: [
         {
           model: Vehicle,
-
           as: "vehicle",
         },
 
         {
           model: DriverShiftCheck,
-
           as: "checks",
         },
 
         {
           model: User,
-
           as: "driver",
-
           attributes: ["id", "name", "email"],
         },
       ],
@@ -414,6 +516,10 @@ export async function startDriverShift(req: Request, res: Response) {
       });
     }
 
+    /**
+     * La generación del PDF ocurre después del commit.
+     * Un fallo del PDF no invalida una jornada ya iniciada.
+     */
     try {
       const pdf = await generateDriverShiftPdf(createdShift as any);
 
@@ -432,7 +538,28 @@ export async function startDriverShift(req: Request, res: Response) {
       data: createdShift,
     });
   } catch (error) {
-    await transaction.rollback();
+    if (!transactionFinished) {
+      try {
+        await transaction.rollback();
+      } catch (rollbackError) {
+        console.error(
+          "Error realizando rollback de inicio de jornada:",
+          rollbackError,
+        );
+      }
+    }
+
+    /**
+     * Si ocurrió un error antes del commit,
+     * eliminamos las fotografías que Multer
+     * ya hubiera escrito en disco.
+     *
+     * Después del commit las fotografías pertenecen
+     * a una jornada válida y no deben eliminarse.
+     */
+    if (!transactionFinished) {
+      removeDriverShiftPhotos(req);
+    }
 
     console.error(error);
 
@@ -446,9 +573,12 @@ export async function startDriverShift(req: Request, res: Response) {
 export async function finishDriverShift(req: Request, res: Response) {
   const transaction = await sequelize.transaction();
 
+  let transactionFinished = false;
+
   try {
     if (!req.user?.id) {
       await transaction.rollback();
+      transactionFinished = true;
 
       return res.status(401).json({
         ok: false,
@@ -462,6 +592,7 @@ export async function finishDriverShift(req: Request, res: Response) {
 
     if (!Number.isInteger(parsedFinalMileage) || parsedFinalMileage < 0) {
       await transaction.rollback();
+      transactionFinished = true;
 
       return res.status(400).json({
         ok: false,
@@ -472,17 +603,16 @@ export async function finishDriverShift(req: Request, res: Response) {
     const shift = await DriverShift.findOne({
       where: {
         user_id: req.user.id,
-
         status: "started",
       },
 
       transaction,
-
       lock: transaction.LOCK.UPDATE,
     });
 
     if (!shift) {
       await transaction.rollback();
+      transactionFinished = true;
 
       return res.status(404).json({
         ok: false,
@@ -492,6 +622,7 @@ export async function finishDriverShift(req: Request, res: Response) {
 
     if (parsedFinalMileage < Number(shift.initial_mileage)) {
       await transaction.rollback();
+      transactionFinished = true;
 
       return res.status(400).json({
         ok: false,
@@ -518,26 +649,23 @@ export async function finishDriverShift(req: Request, res: Response) {
     );
 
     await transaction.commit();
+    transactionFinished = true;
 
     const completedShift = await DriverShift.findByPk(shift.id, {
       include: [
         {
           model: Vehicle,
-
           as: "vehicle",
         },
 
         {
           model: DriverShiftCheck,
-
           as: "checks",
         },
 
         {
           model: User,
-
           as: "driver",
-
           attributes: ["id", "name", "email"],
         },
       ],
@@ -549,7 +677,16 @@ export async function finishDriverShift(req: Request, res: Response) {
       data: completedShift,
     });
   } catch (error) {
-    await transaction.rollback();
+    if (!transactionFinished) {
+      try {
+        await transaction.rollback();
+      } catch (rollbackError) {
+        console.error(
+          "Error realizando rollback de cierre de jornada:",
+          rollbackError,
+        );
+      }
+    }
 
     console.error(error);
 
@@ -575,21 +712,17 @@ export async function downloadDriverShiftTicket(req: Request, res: Response) {
       include: [
         {
           model: Vehicle,
-
           as: "vehicle",
         },
 
         {
           model: DriverShiftCheck,
-
           as: "checks",
         },
 
         {
           model: User,
-
           as: "driver",
-
           attributes: ["id", "name", "email"],
         },
       ],
@@ -604,12 +737,6 @@ export async function downloadDriverShiftTicket(req: Request, res: Response) {
 
     const role = (req.user as any)?.role?.name;
 
-    /**
-     * Transportista solo puede
-     * descargar sus propios tickets.
-     *
-     * Admin puede descargar cualquiera.
-     */
     if (role !== "admin" && shift.user_id !== req.user.id) {
       return res.status(403).json({
         ok: false,
@@ -617,10 +744,6 @@ export async function downloadDriverShiftTicket(req: Request, res: Response) {
       });
     }
 
-    /**
-     * Si el PDF no existe,
-     * intentamos regenerarlo.
-     */
     let pdfPath = shift.ticket_pdf_path
       ? path.resolve(process.cwd(), shift.ticket_pdf_path)
       : null;
@@ -671,7 +794,6 @@ export async function getAllDriverShifts(req: Request, res: Response) {
         {
           model: User,
           as: "driver",
-
           attributes: ["id", "name", "email"],
         },
 
@@ -682,7 +804,6 @@ export async function getAllDriverShifts(req: Request, res: Response) {
 
         {
           model: DriverShiftCheck,
-
           as: "checks",
         },
       ],
@@ -700,6 +821,129 @@ export async function getAllDriverShifts(req: Request, res: Response) {
     return res.status(500).json({
       ok: false,
       message: "Error obteniendo jornadas de transportistas",
+    });
+  }
+}
+
+/**
+ * =========================================================
+ * FOTOGRAFÍAS DE JORNADA
+ * =========================================================
+ */
+
+/**
+ * Fotografía del conductor registrada
+ * al inicio de una jornada.
+ *
+ * Acceso exclusivo para administrador.
+ */
+export async function getDriverShiftDriverPhoto(
+  req: Request,
+  res: Response,
+) {
+  try {
+    const shiftId = req.params.id as string;
+
+    const shift = await DriverShift.findByPk(shiftId);
+
+    if (!shift) {
+      return res.status(404).json({
+        ok: false,
+        message: "Jornada no encontrada",
+      });
+    }
+
+    if (!shift.driver_photo_path) {
+      return res.status(404).json({
+        ok: false,
+        message:
+          "Esta jornada no tiene fotografía del conductor",
+      });
+    }
+
+    const photoPath = path.resolve(
+      process.cwd(),
+      shift.driver_photo_path,
+    );
+
+    if (!fs.existsSync(photoPath)) {
+      return res.status(404).json({
+        ok: false,
+        message:
+          "La fotografía del conductor no existe en el almacenamiento",
+      });
+    }
+
+    return res.sendFile(photoPath);
+  } catch (error) {
+    console.error(
+      "Error obteniendo fotografía del conductor:",
+      error,
+    );
+
+    return res.status(500).json({
+      ok: false,
+      message:
+        "Error obteniendo fotografía del conductor",
+    });
+  }
+}
+
+
+/**
+ * Fotografía del vehículo registrada
+ * al inicio de una jornada.
+ *
+ * Acceso exclusivo para administrador.
+ */
+export async function getDriverShiftVehiclePhoto(
+  req: Request,
+  res: Response,
+) {
+  try {
+    const shiftId = req.params.id as string;
+
+    const shift = await DriverShift.findByPk(shiftId);
+
+    if (!shift) {
+      return res.status(404).json({
+        ok: false,
+        message: "Jornada no encontrada",
+      });
+    }
+
+    if (!shift.vehicle_photo_path) {
+      return res.status(404).json({
+        ok: false,
+        message:
+          "Esta jornada no tiene fotografía del vehículo",
+      });
+    }
+
+    const photoPath = path.resolve(
+      process.cwd(),
+      shift.vehicle_photo_path,
+    );
+
+    if (!fs.existsSync(photoPath)) {
+      return res.status(404).json({
+        ok: false,
+        message:
+          "La fotografía del vehículo no existe en el almacenamiento",
+      });
+    }
+
+    return res.sendFile(photoPath);
+  } catch (error) {
+    console.error(
+      "Error obteniendo fotografía del vehículo:",
+      error,
+    );
+
+    return res.status(500).json({
+      ok: false,
+      message:
+        "Error obteniendo fotografía del vehículo",
     });
   }
 }

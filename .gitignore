@@ -1,3 +1,7 @@
 node_modules
 .env
 dist
+
+# Archivos generados por jornadas de transportistas
+storage/driver-shifts/*.pdf
+storage/driver-shifts/photos/

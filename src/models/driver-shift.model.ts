@@ -35,6 +35,16 @@ export class DriverShift extends Model<
 
   declare ticket_pdf_path: string | null;
 
+  /**
+   * Fotografías tomadas al inicio de la jornada.
+   *
+   * Se guardan como snapshot histórico de esa jornada,
+   * no como fotografía permanente del usuario o vehículo.
+   */
+  declare driver_photo_path: string | null;
+
+  declare vehicle_photo_path: string | null;
+
   declare createdAt: CreationOptional<Date>;
 
   declare updatedAt: CreationOptional<Date>;
@@ -115,6 +125,16 @@ export function initDriverShiftModel(sequelize: Sequelize): typeof DriverShift {
       },
 
       ticket_pdf_path: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+
+      driver_photo_path: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+
+      vehicle_photo_path: {
         type: DataTypes.TEXT,
         allowNull: true,
       },
