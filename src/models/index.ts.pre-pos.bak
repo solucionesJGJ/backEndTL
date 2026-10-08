@@ -69,11 +69,6 @@ import {
   initEconomicActivityModel,
 } from "./economic_models/economic-activity.model.js";
 
-import { PosOrganization, initPosOrganizationModel } from "./pos_models/pos-organization.model.js";
-import { PosLocation, initPosLocationModel } from "./pos_models/pos-location.model.js";
-import { PosTaxProfile, initPosTaxProfileModel } from "./pos_models/pos-tax-profile.model.js";
-import { PosTerminal, initPosTerminalModel } from "./pos_models/pos-terminal.model.js";
-
 if (
   !process.env.DB_NAME ||
   !process.env.DB_USER ||
@@ -123,11 +118,6 @@ initBillingDocumentBatchModel(sequelize);
 initBillingDocumentItemModel(sequelize);
 initDispatchGuideModel(sequelize);
 initDispatchGuideItemModel(sequelize);
-initPosOrganizationModel(sequelize);
-initPosTaxProfileModel(sequelize);
-initPosLocationModel(sequelize);
-initPosTerminalModel(sequelize);
-
 
 /**
  * Relaciones
@@ -797,44 +787,6 @@ EconomicActivity.belongsToMany(Client, {
   as: "clients",
 });
 
-/**
- * =========================================================
- * POS - ORGANIZACIONES, PERFILES, LOCALES Y TERMINALES
- * =========================================================
- */
-PosOrganization.hasMany(PosTaxProfile, {
-  foreignKey: "organization_id",
-  as: "tax_profiles",
-});
-PosTaxProfile.belongsTo(PosOrganization, {
-  foreignKey: "organization_id",
-  as: "organization",
-});
-PosOrganization.hasMany(PosLocation, {
-  foreignKey: "organization_id",
-  as: "locations",
-});
-PosLocation.belongsTo(PosOrganization, {
-  foreignKey: "organization_id",
-  as: "organization",
-});
-PosTaxProfile.hasMany(PosLocation, {
-  foreignKey: "tax_profile_id",
-  as: "locations",
-});
-PosLocation.belongsTo(PosTaxProfile, {
-  foreignKey: "tax_profile_id",
-  as: "tax_profile",
-});
-PosLocation.hasMany(PosTerminal, {
-  foreignKey: "location_id",
-  as: "terminals",
-});
-PosTerminal.belongsTo(PosLocation, {
-  foreignKey: "location_id",
-  as: "location",
-});
-
 export {
   BillingDocument,
   BillingDocumentBatch,
@@ -854,10 +806,6 @@ export {
   GarmentPriceHistory,
   GarmentStock,
   MovementStatus,
-  PosOrganization,
-  PosLocation,
-  PosTaxProfile,
-  PosTerminal,
   Role,
   User,
   Vehicle,
