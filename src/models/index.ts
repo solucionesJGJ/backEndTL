@@ -75,6 +75,7 @@ import { PosTaxProfile, initPosTaxProfileModel } from "./pos_models/pos-tax-prof
 import { PosTerminal, initPosTerminalModel } from "./pos_models/pos-terminal.model.js";
 import { PosCategory, initPosCategoryModel } from "./pos_models/pos-category.model.js";
 import { PosItem, initPosItemModel } from "./pos_models/pos-item.model.js";
+import { PosLocationPrice, initPosLocationPriceModel } from "./pos_models/pos-location-price.model.js";
 
 if (
   !process.env.DB_NAME ||
@@ -131,6 +132,7 @@ initPosLocationModel(sequelize);
 initPosTerminalModel(sequelize);
 initPosCategoryModel(sequelize);
 initPosItemModel(sequelize);
+initPosLocationPriceModel(sequelize);
 
 /**
  * Relaciones
@@ -837,12 +839,16 @@ PosTerminal.belongsTo(PosLocation, {
   foreignKey: "location_id",
   as: "location",
 });
-PosOrganization.hasMany(PosCategory, { foreignKey: "organization_id", as: "pos_categories" });
-PosCategory.belongsTo(PosOrganization, { foreignKey: "organization_id", as: "organization" });
-PosOrganization.hasMany(PosItem, { foreignKey: "organization_id", as: "pos_items" });
-PosItem.belongsTo(PosOrganization, { foreignKey: "organization_id", as: "organization" });
-PosCategory.hasMany(PosItem, { foreignKey: "category_id", as: "items" });
-PosItem.belongsTo(PosCategory, { foreignKey: "category_id", as: "category" });
+PosOrganization.hasMany(PosCategory,{foreignKey:"organization_id",as:"categories"});
+PosCategory.belongsTo(PosOrganization,{foreignKey:"organization_id",as:"organization"});
+PosOrganization.hasMany(PosItem,{foreignKey:"organization_id",as:"catalog_items"});
+PosItem.belongsTo(PosOrganization,{foreignKey:"organization_id",as:"organization"});
+PosCategory.hasMany(PosItem,{foreignKey:"category_id",as:"items"});
+PosItem.belongsTo(PosCategory,{foreignKey:"category_id",as:"category"});
+PosLocation.hasMany(PosLocationPrice,{foreignKey:"location_id",as:"prices"});
+PosLocationPrice.belongsTo(PosLocation,{foreignKey:"location_id",as:"location"});
+PosItem.hasMany(PosLocationPrice,{foreignKey:"item_id",as:"location_prices"});
+PosLocationPrice.belongsTo(PosItem,{foreignKey:"item_id",as:"item"});
 
 export {
   BillingDocument,
@@ -872,4 +878,5 @@ export {
   Vehicle,
   PosCategory,
   PosItem,
+  PosLocationPrice,
 };
