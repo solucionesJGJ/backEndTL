@@ -27,7 +27,11 @@ export class PosLocation extends Model<
 export function initPosLocationModel(sequelize: Sequelize): typeof PosLocation {
   PosLocation.init(
     {
-      id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true,
+      },
       organization_id: { type: DataTypes.UUID, allowNull: false },
       tax_profile_id: { type: DataTypes.UUID, allowNull: true },
       name: { type: DataTypes.STRING(150), allowNull: false },

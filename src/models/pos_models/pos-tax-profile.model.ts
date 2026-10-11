@@ -31,7 +31,11 @@ export function initPosTaxProfileModel(
 ): typeof PosTaxProfile {
   PosTaxProfile.init(
     {
-      id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true,
+      },
       organization_id: { type: DataTypes.UUID, allowNull: false },
       name: { type: DataTypes.STRING(150), allowNull: false },
       rut: { type: DataTypes.STRING(20), allowNull: false },

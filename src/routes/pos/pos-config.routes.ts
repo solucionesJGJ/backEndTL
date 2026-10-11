@@ -2,8 +2,14 @@ import { Router } from "express";
 import { authMiddleware } from "../../middlewares/auth.middleware.js";
 import { requireRole } from "../../middlewares/role.middleware.js";
 import {
-  getOrganizations, getOrganizationById, postOrganization, putOrganization,
-  getLocations, getLocationById, postLocation, putLocation,
+  getOrganizations,
+  getOrganizationById,
+  postOrganization,
+  putOrganization,
+  getLocations,
+  getLocationById,
+  postLocation,
+  putLocation,
 } from "../../controllers/pos/pos-config.controller.js";
 
 const router = Router();

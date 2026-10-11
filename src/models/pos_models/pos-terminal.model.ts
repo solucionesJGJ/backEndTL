@@ -23,7 +23,11 @@ export class PosTerminal extends Model<
 export function initPosTerminalModel(sequelize: Sequelize): typeof PosTerminal {
   PosTerminal.init(
     {
-      id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true,
+      },
       location_id: { type: DataTypes.UUID, allowNull: false },
       name: { type: DataTypes.STRING(150), allowNull: false },
       code: { type: DataTypes.STRING(50), allowNull: false },

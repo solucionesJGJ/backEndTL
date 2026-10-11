@@ -76,6 +76,9 @@ import { PosTerminal, initPosTerminalModel } from "./pos_models/pos-terminal.mod
 import { PosCategory, initPosCategoryModel } from "./pos_models/pos-category.model.js";
 import { PosItem, initPosItemModel } from "./pos_models/pos-item.model.js";
 import { PosLocationPrice, initPosLocationPriceModel } from "./pos_models/pos-location-price.model.js";
+import { PosSale, initPosSaleModel } from "./pos_models/pos-sale.model.js";
+import { PosSaleItem, initPosSaleItemModel } from "./pos_models/pos-sale-item.model.js";
+import { PosSalePayment, initPosSalePaymentModel } from "./pos_models/pos-sale-payment.model.js";
 
 if (
   !process.env.DB_NAME ||
@@ -133,6 +136,9 @@ initPosTerminalModel(sequelize);
 initPosCategoryModel(sequelize);
 initPosItemModel(sequelize);
 initPosLocationPriceModel(sequelize);
+initPosSaleModel(sequelize);
+initPosSaleItemModel(sequelize);
+initPosSalePaymentModel(sequelize);
 
 /**
  * Relaciones
@@ -849,6 +855,20 @@ PosLocation.hasMany(PosLocationPrice,{foreignKey:"location_id",as:"prices"});
 PosLocationPrice.belongsTo(PosLocation,{foreignKey:"location_id",as:"location"});
 PosItem.hasMany(PosLocationPrice,{foreignKey:"item_id",as:"location_prices"});
 PosLocationPrice.belongsTo(PosItem,{foreignKey:"item_id",as:"item"});
+PosOrganization.hasMany(PosSale,{foreignKey:"organization_id",as:"pos_sales"});
+PosSale.belongsTo(PosOrganization,{foreignKey:"organization_id",as:"organization"});
+PosLocation.hasMany(PosSale,{foreignKey:"location_id",as:"sales"});
+PosSale.belongsTo(PosLocation,{foreignKey:"location_id",as:"location"});
+PosTerminal.hasMany(PosSale,{foreignKey:"terminal_id",as:"sales"});
+PosSale.belongsTo(PosTerminal,{foreignKey:"terminal_id",as:"terminal"});
+User.hasMany(PosSale,{foreignKey:"created_by",as:"pos_sales"});
+PosSale.belongsTo(User,{foreignKey:"created_by",as:"cashier"});
+PosSale.hasMany(PosSaleItem,{foreignKey:"sale_id",as:"items"});
+PosSaleItem.belongsTo(PosSale,{foreignKey:"sale_id",as:"sale"});
+PosItem.hasMany(PosSaleItem,{foreignKey:"item_id",as:"sale_items"});
+PosSaleItem.belongsTo(PosItem,{foreignKey:"item_id",as:"item"});
+PosSale.hasMany(PosSalePayment,{foreignKey:"sale_id",as:"payments"});
+PosSalePayment.belongsTo(PosSale,{foreignKey:"sale_id",as:"sale"});
 
 export {
   BillingDocument,
@@ -879,4 +899,7 @@ export {
   PosCategory,
   PosItem,
   PosLocationPrice,
+  PosSale,
+  PosSaleItem,
+  PosSalePayment,
 };

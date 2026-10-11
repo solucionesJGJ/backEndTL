@@ -24,7 +24,11 @@ export function initPosOrganizationModel(
 ): typeof PosOrganization {
   PosOrganization.init(
     {
-      id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true,
+      },
       name: { type: DataTypes.STRING(150), allowNull: false },
       code: { type: DataTypes.STRING(50), allowNull: false, unique: true },
       active: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
@@ -36,10 +40,7 @@ export function initPosOrganizationModel(
       tableName: "pos_organizations",
       timestamps: true,
       underscored: true,
-      indexes: [
-        { unique: true, fields: ["code"] },
-        { fields: ["name"] },
-      ],
+      indexes: [{ unique: true, fields: ["code"] }, { fields: ["name"] }],
     },
   );
   return PosOrganization;

@@ -19,6 +19,7 @@ import posConfigRoutes from "./pos/pos-config.routes.js";
 import posResourcesRoutes from "./pos/pos-resources.routes.js";
 import posCatalogRoutes from "./pos/pos-catalog.routes.js";
 import posLocationPriceRoutes from "./pos/pos-location-price.routes.js";
+import posSaleRoutes from "./pos/pos-sale.routes.js";
 
 const router = Router();
 
@@ -41,5 +42,6 @@ router.use("/pos", posConfigRoutes);
 router.use("/pos", posResourcesRoutes);
 router.use("/pos", posCatalogRoutes);
 router.use("/pos", posLocationPriceRoutes);
+router.use("/pos",posSaleRoutes);
 
 export default router;
