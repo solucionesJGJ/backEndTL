@@ -15,7 +15,7 @@ export const getTaxProfiles = respond(req=>listTaxProfiles(req.query.organizatio
 export const getTaxProfileById = respond(req=>getTaxProfile(req.params.id as string));
 export const postTaxProfile = respond(req=>createTaxProfile(req.body),201);
 export const putTaxProfile = respond(req=>updateTaxProfile(req.params.id as string,req.body));
-export const getTerminals = respond(req=>listTerminals(req.query.location_id));
+export const getTerminals = respond(req=>listTerminals(req.query.location_id,req.query.organization_id));
 export const getTerminalById = respond(req=>getTerminal(req.params.id as string));
 export const postTerminal = respond(req=>createTerminal(req.body),201);
 export const putTerminal = respond(req=>updateTerminal(req.params.id as string,req.body));

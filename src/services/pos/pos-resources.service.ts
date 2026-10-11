@@ -97,9 +97,40 @@ export async function updateTaxProfile(id: string, raw: unknown) {
   await tax.update(changes);
   return tax;
 }
-export async function listTerminals(locationId?: unknown) {
-  const where = locationId === undefined ? {} : { location_id: uuid(locationId,"location_id") };
-  return PosTerminal.findAll({where,order:[["name","ASC"]]});
+
+/**
+ * Consulta terminales de un local, de una organización, o ambas condiciones.
+ * La organización se resuelve a través de pos_locations.
+ */
+export async function listTerminals(locationId?: unknown, organizationId?: unknown) {
+  const location_id = locationId === undefined ? undefined : uuid(locationId, "location_id");
+  const organization_id = organizationId === undefined ? undefined : uuid(organizationId, "organization_id");
+
+  if (organization_id !== undefined) await ensureOrg(organization_id);
+
+  if (location_id !== undefined) {
+    const loc = await ensureLocation(location_id);
+    if (organization_id !== undefined && loc.organization_id !== organization_id) {
+      throw new PosError(400, "El local no pertenece a la organización indicada");
+    }
+  }
+
+  const where = location_id === undefined ? {} : { location_id };
+  if (organization_id === undefined) {
+    return PosTerminal.findAll({ where, order: [["name", "ASC"], ["id", "ASC"]] });
+  }
+
+  return PosTerminal.findAll({
+    where,
+    include: [{
+      model: PosLocation,
+      as: "location",
+      required: true,
+      attributes: ["id", "name", "code", "organization_id"],
+      where: { organization_id },
+    }],
+    order: [["name", "ASC"], ["id", "ASC"]],
+  });
 }
 export async function getTerminal(id:string) { return ensureTerminal(uuid(id,"id")); }
 export async function createTerminal(raw:unknown) {
