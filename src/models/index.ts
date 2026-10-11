@@ -73,6 +73,8 @@ import { PosOrganization, initPosOrganizationModel } from "./pos_models/pos-orga
 import { PosLocation, initPosLocationModel } from "./pos_models/pos-location.model.js";
 import { PosTaxProfile, initPosTaxProfileModel } from "./pos_models/pos-tax-profile.model.js";
 import { PosTerminal, initPosTerminalModel } from "./pos_models/pos-terminal.model.js";
+import { PosCategory, initPosCategoryModel } from "./pos_models/pos-category.model.js";
+import { PosItem, initPosItemModel } from "./pos_models/pos-item.model.js";
 
 if (
   !process.env.DB_NAME ||
@@ -127,7 +129,8 @@ initPosOrganizationModel(sequelize);
 initPosTaxProfileModel(sequelize);
 initPosLocationModel(sequelize);
 initPosTerminalModel(sequelize);
-
+initPosCategoryModel(sequelize);
+initPosItemModel(sequelize);
 
 /**
  * Relaciones
@@ -834,6 +837,12 @@ PosTerminal.belongsTo(PosLocation, {
   foreignKey: "location_id",
   as: "location",
 });
+PosOrganization.hasMany(PosCategory, { foreignKey: "organization_id", as: "pos_categories" });
+PosCategory.belongsTo(PosOrganization, { foreignKey: "organization_id", as: "organization" });
+PosOrganization.hasMany(PosItem, { foreignKey: "organization_id", as: "pos_items" });
+PosItem.belongsTo(PosOrganization, { foreignKey: "organization_id", as: "organization" });
+PosCategory.hasMany(PosItem, { foreignKey: "category_id", as: "items" });
+PosItem.belongsTo(PosCategory, { foreignKey: "category_id", as: "category" });
 
 export {
   BillingDocument,
@@ -861,4 +870,6 @@ export {
   Role,
   User,
   Vehicle,
+  PosCategory,
+  PosItem,
 };
