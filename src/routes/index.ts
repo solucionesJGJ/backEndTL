@@ -15,6 +15,8 @@ import stockRoutes from "./stock.routes.js";
 import userRoutes from "./user.routes.js";
 import vehicleRoutes from "./vehicle.routes.js";
 import economicActivityRoutes from "./economic-activity.routes.js";
+import posConfigRoutes from "./pos/pos-config.routes.js";
+import posResourcesRoutes from "./pos/pos-resources.routes.js";
 
 const router = Router();
 
@@ -33,5 +35,7 @@ router.use("/driver-shifts", driverShiftRoutes);
 router.use("/reports", clientReportRoutes);
 router.use("/billing", billingRoutes);
 router.use("/dispatch-guides", dispatchGuideRoutes);
+router.use("/pos", posConfigRoutes);
+router.use("/pos", posResourcesRoutes);
 
 export default router;
