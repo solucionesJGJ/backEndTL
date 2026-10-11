@@ -79,6 +79,7 @@ import { PosLocationPrice, initPosLocationPriceModel } from "./pos_models/pos-lo
 import { PosSale, initPosSaleModel } from "./pos_models/pos-sale.model.js";
 import { PosSaleItem, initPosSaleItemModel } from "./pos_models/pos-sale-item.model.js";
 import { PosSalePayment, initPosSalePaymentModel } from "./pos_models/pos-sale-payment.model.js";
+import { PosSaleReversal, initPosSaleReversalModel } from "./pos_models/pos-sale-reversal.model.js";
 
 if (
   !process.env.DB_NAME ||
@@ -139,6 +140,7 @@ initPosLocationPriceModel(sequelize);
 initPosSaleModel(sequelize);
 initPosSaleItemModel(sequelize);
 initPosSalePaymentModel(sequelize);
+initPosSaleReversalModel(sequelize);
 
 /**
  * Relaciones
@@ -869,6 +871,10 @@ PosItem.hasMany(PosSaleItem,{foreignKey:"item_id",as:"sale_items"});
 PosSaleItem.belongsTo(PosItem,{foreignKey:"item_id",as:"item"});
 PosSale.hasMany(PosSalePayment,{foreignKey:"sale_id",as:"payments"});
 PosSalePayment.belongsTo(PosSale,{foreignKey:"sale_id",as:"sale"});
+PosSale.hasOne(PosSaleReversal, { foreignKey: "sale_id", as: "reversal" });
+PosSaleReversal.belongsTo(PosSale, { foreignKey: "sale_id", as: "sale" });
+User.hasMany(PosSaleReversal, { foreignKey: "created_by", as: "pos_sale_reversals" });
+PosSaleReversal.belongsTo(User, { foreignKey: "created_by", as: "actor" });
 
 export {
   BillingDocument,
@@ -902,4 +908,5 @@ export {
   PosSale,
   PosSaleItem,
   PosSalePayment,
+  PosSaleReversal,
 };
