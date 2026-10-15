@@ -80,6 +80,8 @@ import { PosSale, initPosSaleModel } from "./pos_models/pos-sale.model.js";
 import { PosSaleItem, initPosSaleItemModel } from "./pos_models/pos-sale-item.model.js";
 import { PosSalePayment, initPosSalePaymentModel } from "./pos_models/pos-sale-payment.model.js";
 import { PosSaleReversal, initPosSaleReversalModel } from "./pos_models/pos-sale-reversal.model.js";
+import { PosCashSession, initPosCashSessionModel } from "./pos_models/pos-cash-session.model.js";
+import { PosCashMovement, initPosCashMovementModel } from "./pos_models/pos-cash-movement.model.js";
 
 if (
   !process.env.DB_NAME ||
@@ -141,6 +143,8 @@ initPosSaleModel(sequelize);
 initPosSaleItemModel(sequelize);
 initPosSalePaymentModel(sequelize);
 initPosSaleReversalModel(sequelize);
+initPosCashSessionModel(sequelize);
+initPosCashMovementModel(sequelize);
 
 /**
  * Relaciones
@@ -875,6 +879,19 @@ PosSale.hasOne(PosSaleReversal, { foreignKey: "sale_id", as: "reversal" });
 PosSaleReversal.belongsTo(PosSale, { foreignKey: "sale_id", as: "sale" });
 User.hasMany(PosSaleReversal, { foreignKey: "created_by", as: "pos_sale_reversals" });
 PosSaleReversal.belongsTo(User, { foreignKey: "created_by", as: "actor" });
+PosTerminal.hasMany(PosCashSession, { foreignKey: "terminal_id", as: "cash_sessions" });
+PosCashSession.belongsTo(PosTerminal, { foreignKey: "terminal_id", as: "terminal" });
+PosLocation.hasMany(PosCashSession, { foreignKey: "location_id", as: "cash_sessions" });
+PosCashSession.belongsTo(PosLocation, { foreignKey: "location_id", as: "location" });
+PosOrganization.hasMany(PosCashSession, { foreignKey: "organization_id", as: "cash_sessions" });
+PosCashSession.belongsTo(PosOrganization, { foreignKey: "organization_id", as: "organization" });
+PosCashSession.hasMany(PosCashMovement, { foreignKey: "session_id", as: "movements" });
+PosCashMovement.belongsTo(PosCashSession, { foreignKey: "session_id", as: "session" });
+User.hasMany(PosCashSession, { foreignKey: "opened_by", as: "opened_cash_sessions" });
+PosCashSession.belongsTo(User, { foreignKey: "opened_by", as: "opener" });
+PosCashSession.belongsTo(User, { foreignKey: "closed_by", as: "closer" });
+User.hasMany(PosCashMovement, { foreignKey: "created_by", as: "cash_movements" });
+PosCashMovement.belongsTo(User, { foreignKey: "created_by", as: "actor" });
 
 export {
   BillingDocument,
@@ -909,4 +926,6 @@ export {
   PosSaleItem,
   PosSalePayment,
   PosSaleReversal,
+  PosCashSession,
+  PosCashMovement,
 };
