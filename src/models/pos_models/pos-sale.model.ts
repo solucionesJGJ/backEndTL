@@ -14,6 +14,7 @@ export class PosSale extends Model<
   declare organization_id: string;
   declare location_id: string;
   declare terminal_id: string;
+  declare cash_session_id: string | null;
   declare created_by: string;
   declare request_id: string;
   declare status: CreationOptional<"PAID">;
@@ -35,6 +36,7 @@ export function initPosSaleModel(sequelize: Sequelize): typeof PosSale {
       organization_id: { type: DataTypes.UUID, allowNull: false },
       location_id: { type: DataTypes.UUID, allowNull: false },
       terminal_id: { type: DataTypes.UUID, allowNull: false },
+      cash_session_id: { type: DataTypes.UUID, allowNull: true },
       created_by: { type: DataTypes.UUID, allowNull: false },
       request_id: { type: DataTypes.UUID, allowNull: false, unique: true },
       status: {
@@ -58,6 +60,7 @@ export function initPosSaleModel(sequelize: Sequelize): typeof PosSale {
         { fields: ["organization_id", "created_at"] },
         { fields: ["location_id", "created_at"] },
         { fields: ["terminal_id", "created_at"] },
+        { fields: ["cash_session_id"] },
       ],
     },
   );

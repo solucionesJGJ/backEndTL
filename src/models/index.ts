@@ -892,6 +892,8 @@ PosCashSession.belongsTo(User, { foreignKey: "opened_by", as: "opener" });
 PosCashSession.belongsTo(User, { foreignKey: "closed_by", as: "closer" });
 User.hasMany(PosCashMovement, { foreignKey: "created_by", as: "cash_movements" });
 PosCashMovement.belongsTo(User, { foreignKey: "created_by", as: "actor" });
+PosCashSession.hasMany(PosSale, { foreignKey: "cash_session_id", as: "sales" });
+PosSale.belongsTo(PosCashSession, { foreignKey: "cash_session_id", as: "cash_session" });
 
 export {
   BillingDocument,

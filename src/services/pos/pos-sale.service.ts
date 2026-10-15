@@ -9,6 +9,7 @@ import {
   PosSale,
   PosSaleItem,
   PosSalePayment,
+  PosCashSession,
   User,
 } from "../../models/index.js";
 class SaleError extends Error {
@@ -79,6 +80,12 @@ export async function createSale(raw: unknown, actorId: unknown) {
         ...details,
       });
       if (duplicate) return { sale: duplicate, replayed: true };
+      const cashSession = await PosCashSession.findOne({
+        where: { terminal_id, location_id, status: "OPEN" },
+        transaction: t,
+        lock: t.LOCK.UPDATE,
+      });
+      if (!cashSession) throw new SaleError(409, "La terminal no tiene una caja abierta");
       const location = await PosLocation.findByPk(location_id, {
         transaction: t,
       });
@@ -172,7 +179,7 @@ export async function createSale(raw: unknown, actorId: unknown) {
           r.reference === undefined || r.reference === null
             ? null
             : typeof r.reference === "string" &&
-                r.reference.trim().length <= 150
+              r.reference.trim().length <= 150
               ? r.reference.trim()
               : null;
         if (r.reference != null && reference === null)
@@ -187,6 +194,7 @@ export async function createSale(raw: unknown, actorId: unknown) {
           organization_id: organization.id,
           location_id,
           terminal_id,
+          cash_session_id: cashSession.id,
           created_by,
           request_id,
           subtotal_clp: total,

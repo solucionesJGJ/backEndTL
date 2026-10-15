@@ -1,0 +1,14 @@
+import { Router } from "express";
+import { authMiddleware } from "../../middlewares/auth.middleware.js";
+import { requireRole } from "../../middlewares/role.middleware.js";
+import { postCashOpen, postCashMovement, postCashClose, getCashSummary, getCashById, getCashSessions, getCashMovements } from "../../controllers/pos/pos-cash.controller.js";
+const router = Router();
+router.use(authMiddleware, requireRole("admin"));
+router.post("/cash-sessions/open", postCashOpen);
+router.get("/cash-sessions", getCashSessions);
+router.get("/cash-sessions/:id", getCashById);
+router.get("/cash-sessions/:id/summary", getCashSummary);
+router.post("/cash-sessions/:id/movements", postCashMovement);
+router.get("/cash-sessions/:id/movements", getCashMovements);
+router.post("/cash-sessions/:id/close", postCashClose);
+export default router;
